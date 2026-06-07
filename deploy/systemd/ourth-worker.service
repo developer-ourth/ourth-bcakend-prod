@@ -1,0 +1,26 @@
+# /etc/systemd/system/ourth-worker.service
+#
+# Systemd service for the Ourth Laravel queue worker.
+# Install:
+#   sudo cp deploy/systemd/ourth-worker.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable ourth-worker
+#   sudo systemctl start ourth-worker
+
+[Unit]
+Description=Ourth Laravel Queue Worker
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/ourth-app
+ExecStart=/usr/bin/php artisan queue:work database --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ourth-worker
+
+[Install]
+WantedBy=multi-user.target
