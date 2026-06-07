@@ -38,6 +38,7 @@ class VendorDiscoveryController extends Controller
             'latitude', 'longitude', 'average_rating', 'total_ratings_count',
         ])
             ->where('kyc_status', 'verified')
+            ->where('is_distributor', false)
             ->withCount(['products' => fn ($q) => $q->where('is_active', true)]);
 
         if ($request->filled('category')) {

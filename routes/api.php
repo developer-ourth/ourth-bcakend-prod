@@ -69,8 +69,6 @@ Route::prefix('v1')->group(function () {
 
         // Protected endpoints (auth required)
         Route::middleware('auth:sanctum')->group(function () {
-            Route::get('/', [VendorController::class, 'index']); // List all vendors
-            Route::get('/{vendor}', [VendorController::class, 'show']); // Get vendor details
             Route::post('/resend-vendor-id-email', [VendorController::class, 'resendVendorIdEmail']); // Resend vendor ID email
         });
 
@@ -218,8 +216,8 @@ Route::prefix('v1')->group(function () {
         Route::patch('/addresses/{address}', [AddressController::class, 'update']);
         Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
 
-        // Cart — vendor-only (B2D MVP; role broadened to 'consumer' for future B2C)
-        Route::middleware('role:vendor,admin')->group(function () {
+        // Cart
+        Route::middleware('role:consumer,vendor,admin')->group(function () {
             Route::get('/cart', [CartController::class, 'show']);
             Route::post('/cart/items', [CartController::class, 'addItem']);
             Route::patch('/cart/items/{item}', [CartController::class, 'updateItem']);
@@ -227,8 +225,8 @@ Route::prefix('v1')->group(function () {
             Route::delete('/cart', [CartController::class, 'clear']);
         });
 
-        // Orders — vendor-only (B2D MVP)
-        Route::middleware('role:vendor,admin')->group(function () {
+        // Orders
+        Route::middleware('role:consumer,vendor,admin')->group(function () {
             Route::get('/orders', [MobileOrderController::class, 'index']);
             Route::post('/orders', [MobileOrderController::class, 'store']);
             Route::get('/orders/{order}', [MobileOrderController::class, 'show']);

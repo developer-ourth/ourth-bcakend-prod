@@ -25,10 +25,15 @@ class VendorService
      */
     public function register(array $data): array
     {
+        $providedEmail = isset($data['email']) ? trim((string) $data['email']) : null;
+        $email = $providedEmail !== ''
+            ? strtolower($providedEmail)
+            : sprintf('%s@vendor.ourth.local', preg_replace('/\D+/', '', (string) $data['phone']));
+
         // Create user account
         $user = User::create([
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => $email,
             'phone' => $data['phone'],
             'password' => Hash::make($data['password']),
             'user_type' => 'vendor',
@@ -60,8 +65,10 @@ class VendorService
         // In Phase 2: This can trigger notifications, QR generation, etc.
         event(new VendorRegistered($vendor, $user));
 
-        // Send welcome email containing the vendor's unique login ID
-        Mail::to($user->email)->queue(new VendorWelcomeEmail($vendor, $user));
+        // Send welcome email containing the vendor's unique login ID when a real email is provided.
+        if ($providedEmail !== null && $providedEmail !== '') {
+            Mail::to($user->email)->queue(new VendorWelcomeEmail($vendor, $user));
+        }
 
         return [
             'user' => $user,

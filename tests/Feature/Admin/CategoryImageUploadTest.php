@@ -14,14 +14,18 @@ class CategoryImageUploadTest extends TestCase
 
     public function test_admin_image_upload_returns_media_route_url(): void
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default', 'local') === 'local'
+            ? 'public'
+            : config('filesystems.default');
+
+        Storage::fake($disk);
 
         /** @var User $admin */
         $admin = User::factory()->create(['role' => 'admin', 'user_type' => 'admin']);
 
         $response = $this->actingAs($admin)
             ->postJson('/api/v1/admin/upload-image', [
-                'image' => UploadedFile::fake()->image('category.png'),
+                'image' => UploadedFile::fake()->create('category.png', 100, 'image/png'),
             ])
             ->assertStatus(200)
             ->assertJsonPath('success', true);
@@ -37,6 +41,6 @@ class CategoryImageUploadTest extends TestCase
         $mediaResponse = $this->get('/'.$path)
             ->assertOk();
 
-        $this->assertSame(Storage::disk('public')->get($storedPath), $mediaResponse->getContent());
+        $this->assertSame(Storage::disk($disk)->get($storedPath), $mediaResponse->getContent());
     }
 }
