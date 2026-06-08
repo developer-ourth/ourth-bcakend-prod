@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Vendor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
@@ -111,6 +112,7 @@ class ProductController extends Controller
         }
 
         $validated['category'] = $validated['category'] ?? 'General';
+        $validated = $this->normalizeImagesPayload($validated);
 
         $product = Product::create($validated);
         $product->load(['category', 'vendor']);
@@ -153,6 +155,8 @@ class ProductController extends Controller
             $validated['category'] = Category::find($validated['category_id'])?->name ?? $product->category;
         }
 
+        $validated = $this->normalizeImagesPayload($validated, $product->primary_image_url);
+
         $product->update($validated);
         $product->load(['category', 'vendor']);
 
@@ -182,5 +186,37 @@ class ProductController extends Controller
             'success' => true,
             'message' => 'Product deleted successfully.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function normalizeImagesPayload(array $payload, ?string $fallbackPrimaryImage = null): array
+    {
+        if (! Arr::has($payload, 'secondary_images')) {
+            return $payload;
+        }
+
+        $primaryImage = isset($payload['primary_image_url']) && is_string($payload['primary_image_url'])
+            ? trim($payload['primary_image_url'])
+            : trim((string) $fallbackPrimaryImage);
+
+        $secondaryImages = collect(Arr::get($payload, 'secondary_images', []))
+            ->filter(fn ($url): bool => is_string($url) && trim($url) !== '')
+            ->map(fn (string $url): string => trim($url))
+            ->reject(fn (string $url): bool => $primaryImage !== '' && $url === $primaryImage)
+            ->unique()
+            ->values()
+            ->all();
+
+        $payload['secondary_images'] = $secondaryImages;
+
+        if (($primaryImage === '' || $primaryImage === null) && ! empty($secondaryImages)) {
+            $payload['primary_image_url'] = $secondaryImages[0];
+            $payload['secondary_images'] = array_values(array_slice($secondaryImages, 1));
+        }
+
+        return $payload;
     }
 }
