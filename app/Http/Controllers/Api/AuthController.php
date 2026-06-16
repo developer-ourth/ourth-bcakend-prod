@@ -145,7 +145,7 @@ class AuthController extends Controller
      * Register â€” creates a new user account.
      *
      * POST /api/v1/auth/register
-     * { "name": "...", "email": "...", "password": "...", "password_confirmation": "...", "role": "..." }
+     * { "name": "...", "email": "...", "password": "...", "password_confirmation": "..." }
      */
     public function register(Request $request)
     {
@@ -153,14 +153,14 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:'.implode(',', self::ALLOWED_ROLES),
+            'role' => 'nullable|in:consumer',
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role,
+            'role' => 'consumer',
             'email_verified_at' => now(),
         ]);
 

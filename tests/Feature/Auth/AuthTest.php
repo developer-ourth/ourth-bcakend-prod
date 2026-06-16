@@ -62,6 +62,40 @@ class AuthTest extends TestCase
             ->assertJsonValidationErrors(['role']);
     }
 
+    public function test_public_registration_cannot_create_privileged_account(): void
+    {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Not An Admin',
+            'email' => 'not-admin@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'admin',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['role']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'not-admin@example.com']);
+    }
+
+    public function test_public_registration_defaults_to_consumer_role(): void
+    {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Consumer',
+            'email' => 'consumer@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.user.role', 'consumer');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'consumer@example.com',
+            'role' => 'consumer',
+        ]);
+    }
+
     public function test_register_fails_when_password_not_confirmed(): void
     {
         $response = $this->postJson('/api/v1/auth/register', [

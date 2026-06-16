@@ -113,7 +113,6 @@ Route::prefix('v1')->group(function () {
 
     // Public product & category listing (no auth required)
     Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
 
     // Admin product & category management
