@@ -10,6 +10,7 @@ use App\Models\DeliveryTracking;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * MobileOrderController
@@ -540,13 +542,26 @@ class MobileOrderController extends Controller
      * Download a PDF invoice for an order.
      *
      * GET /api/v1/me/orders/{order}/invoice
-     * Available once the order is confirmed, dispatched, or delivered.
+     * Accepts token as query parameter for browser downloads.
+     * Available once the order is confirmed (not pending or cancelled).
      */
     public function invoice(Request $request, Order $order): Response
     {
-        abort_if($order->user_id !== $request->user()->id, 403, 'Forbidden.');
+        // Authenticate user: first try standard auth header, then check query parameter
+        $user = $request->user();
+        if (! $user) {
+            $token = $request->query('token');
+            if ($token) {
+                $personalAccessToken = PersonalAccessToken::findToken($token);
+                if ($personalAccessToken && $personalAccessToken->tokenable_id) {
+                    $user = User::find($personalAccessToken->tokenable_id);
+                }
+            }
+        }
 
-        if (! in_array($order->order_status, ['confirmed', 'dispatched', 'delivered'])) {
+        abort_if(! $user || $order->user_id !== $user->id, 403, 'Forbidden.');
+
+        if (in_array($order->order_status, ['pending', 'cancelled'])) {
             abort(422, 'Invoice is not available for orders with status: '.$order->order_status);
         }
 

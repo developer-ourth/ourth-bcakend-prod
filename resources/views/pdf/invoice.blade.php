@@ -93,7 +93,7 @@
       <div class="party-detail">
         Mumbai, Maharashtra, India<br/>
         GSTIN: 27AABCO1234H1ZX<br/>
-        support@ourth.in
+        support@healingourth.com
       </div>
     </div>
     <div class="party">
@@ -180,7 +180,7 @@
   {{-- Footer --}}
   <div class="footer">
     <p>This is a computer-generated invoice and does not require a physical signature.</p>
-    <p style="margin-top:6px"><strong>Ourth Trading Pvt. Ltd.</strong> &bull; GSTIN: 27AABCO1234H1ZX &bull; support@ourth.in</p>
+    <p style="margin-top:6px"><strong>Ourth Trading Pvt. Ltd.</strong> &bull; GSTIN: 27AABCO1234H1ZX &bull; support@healingourth.com</p>
   </div>
 
 </div>
