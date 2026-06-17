@@ -25,10 +25,10 @@ class VendorService
      */
     public function register(array $data): array
     {
-        $providedEmail = isset($data['email']) ? trim((string) $data['email']) : null;
-        $email = $providedEmail !== ''
-            ? strtolower($providedEmail)
-            : sprintf('%s@vendor.ourth.local', preg_replace('/\D+/', '', (string) $data['phone']));
+        $providedEmail = (isset($data['email']) && trim((string) $data['email']) !== '') 
+            ? trim((string) $data['email']) 
+            : null;
+        $email = $providedEmail ? strtolower($providedEmail) : null;
 
         // Create user account
         $user = User::create([
