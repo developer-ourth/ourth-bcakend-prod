@@ -63,7 +63,7 @@ class VendorController extends Controller
             'phone' => 'required|string|max:20|unique:users',
             'password' => 'required|string|min:6',
             'business_name' => 'required|string|max:255',
-            'gstin' => ['required', 'string', 'max:15', 'unique:vendors', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/'],
+            'gstin' => ['nullable', 'string', 'max:15', 'unique:vendors', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/'],
             'city' => 'required|string|max:100',
             'state' => 'required|string|max:100',
             'trade_license_number' => 'nullable|string',
