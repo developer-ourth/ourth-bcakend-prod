@@ -28,7 +28,7 @@ class CartController extends Controller
         $cart = Cart::where('user_id', $request->user()->id)
             ->where('status', 'active')
             ->with([
-                'items' => fn ($q) => $q->with('product:id,name,primary_image_url,base_price,discounted_price'),
+                'items' => fn ($q) => $q->with(['product:id,name,primary_image_url,base_price,discounted_price', 'productPack']),
                 'vendor:id,business_name,logo_url,city',
             ])
             ->first();
@@ -66,6 +66,18 @@ class CartController extends Controller
             ], 422);
         }
 
+        $packId = $validated['product_pack_id'] ?? null;
+        $pack = null;
+        if ($packId) {
+            $pack = $product->packs()->where('id', $packId)->where('is_active', true)->first();
+            if (!$pack) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected pack size is invalid or inactive.',
+                ], 422);
+            }
+        }
+
         $existingCart = Cart::where('user_id', $user->id)->where('status', 'active')->first();
 
         // In the B2D model all products belong to the single Ourth distributor vendor.
@@ -82,9 +94,12 @@ class CartController extends Controller
             'last_activity_at' => now(),
         ]);
 
-        $unitPrice = $product->discounted_price ?? $product->base_price;
+        $unitPrice = $pack ? ($pack->discounted_price ?? $pack->base_price) : ($product->discounted_price ?? $product->base_price);
 
-        $item = $cart->items()->where('product_id', $product->id)->first();
+        $item = $cart->items()
+            ->where('product_id', $product->id)
+            ->where('product_pack_id', $packId)
+            ->first();
 
         if ($item) {
             $item->quantity += $validated['quantity'];
@@ -94,6 +109,7 @@ class CartController extends Controller
             $item = CartItem::create([
                 'cart_id' => $cart->id,
                 'product_id' => $product->id,
+                'product_pack_id' => $packId,
                 'quantity' => $validated['quantity'],
                 'unit_price' => $unitPrice,
                 'total_price' => $validated['quantity'] * $unitPrice,
@@ -105,7 +121,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Item added to cart.',
-            'data' => $cart->fresh(['items.product:id,name,primary_image_url', 'vendor:id,business_name']),
+            'data' => $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name']),
         ]);
     }
 

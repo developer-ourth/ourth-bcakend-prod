@@ -91,7 +91,7 @@ class VendorDiscoveryController extends Controller
         $vendor->load([
             'products' => fn ($q) => $q->where('is_active', true)
                 ->select(['id', 'vendor_id', 'name', 'description', 'category', 'base_price', 'discounted_price', 'primary_image_url', 'is_featured'])
-                ->with('inventory:id,product_id,current_stock'),
+                ->with(['inventory:id,product_id,current_stock', 'packs']),
         ]);
 
         return response()->json([
@@ -127,6 +127,7 @@ class VendorDiscoveryController extends Controller
             ->with([
                 'vendor:id,business_name,city,average_rating',
                 'inventory:id,product_id,current_stock',
+                'packs',
             ]);
 
         if ($request->filled('q')) {

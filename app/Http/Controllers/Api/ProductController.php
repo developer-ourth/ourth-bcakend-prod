@@ -20,7 +20,7 @@ class ProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Product::with(['category', 'vendor'])
+        $query = Product::with(['category', 'vendor', 'packs'])
             ->active()
             ->orderByDesc('is_featured')
             ->orderByDesc('created_at');
@@ -61,7 +61,7 @@ class ProductController extends Controller
      */
     public function show(Product $product): JsonResponse
     {
-        $product->load(['category', 'vendor']);
+        $product->load(['category', 'vendor', 'packs']);
 
         return response()->json([
             'success' => true,
@@ -95,6 +95,13 @@ class ProductController extends Controller
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
             'vendor_id' => 'nullable|exists:vendors,id',
+            'packs' => 'nullable|array',
+            'packs.*.name' => 'required|string|max:255',
+            'packs.*.base_price' => 'required|numeric|min:0',
+            'packs.*.discounted_price' => 'nullable|numeric|min:0',
+            'packs.*.sku' => 'nullable|string|max:100',
+            'packs.*.stock_quantity' => 'nullable|integer|min:0',
+            'packs.*.is_active' => 'boolean',
         ]);
 
         $validated['sku'] = $validated['sku'] ?? 'SKU-'.strtoupper(Str::random(8));
@@ -112,10 +119,20 @@ class ProductController extends Controller
         }
 
         $validated['category'] = $validated['category'] ?? 'General';
+        
+        $packsData = Arr::pull($validated, 'packs', []);
         $validated = $this->normalizeImagesPayload($validated);
 
         $product = Product::create($validated);
-        $product->load(['category', 'vendor']);
+
+        if (!empty($packsData)) {
+            foreach ($packsData as $packData) {
+                $packData['sku'] = $packData['sku'] ?? $product->sku.'-'.strtoupper(Str::random(4));
+                $product->packs()->create($packData);
+            }
+        }
+
+        $product->load(['category', 'vendor', 'packs']);
 
         return response()->json([
             'success' => true,
@@ -149,16 +166,44 @@ class ProductController extends Controller
             'unit' => 'nullable|string|max:30',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
+            'packs' => 'nullable|array',
+            'packs.*.id' => 'nullable|integer|exists:product_packs,id',
+            'packs.*.name' => 'required|string|max:255',
+            'packs.*.base_price' => 'required|numeric|min:0',
+            'packs.*.discounted_price' => 'nullable|numeric|min:0',
+            'packs.*.sku' => 'nullable|string|max:100',
+            'packs.*.stock_quantity' => 'nullable|integer|min:0',
+            'packs.*.is_active' => 'boolean',
         ]);
 
         if (empty($validated['category']) && ! empty($validated['category_id'])) {
             $validated['category'] = Category::find($validated['category_id'])?->name ?? $product->category;
         }
 
+        $packsData = Arr::pull($validated, 'packs');
         $validated = $this->normalizeImagesPayload($validated, $product->primary_image_url);
 
         $product->update($validated);
-        $product->load(['category', 'vendor']);
+
+        if ($request->has('packs')) {
+            $keepPackIds = [];
+            if (is_array($packsData)) {
+                foreach ($packsData as $packData) {
+                    if (!empty($packData['id'])) {
+                        $pack = $product->packs()->findOrFail($packData['id']);
+                        $pack->update($packData);
+                        $keepPackIds[] = $pack->id;
+                    } else {
+                        $packData['sku'] = $packData['sku'] ?? $product->sku.'-'.strtoupper(Str::random(4));
+                        $pack = $product->packs()->create($packData);
+                        $keepPackIds[] = $pack->id;
+                    }
+                }
+            }
+            $product->packs()->whereNotIn('id', $keepPackIds)->delete();
+        }
+
+        $product->load(['category', 'vendor', 'packs']);
 
         return response()->json([
             'success' => true,

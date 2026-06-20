@@ -29,6 +29,7 @@ class ProductResource extends JsonResource
             'weight_grams' => $this->weight_grams,
             'is_active' => $this->is_active,
             'is_featured' => $this->is_featured,
+            'packs' => ProductPackResource::collection($this->whenLoaded('packs')),
             'vendor' => $this->whenLoaded('vendor', fn () => $this->vendor ? [
                 'id' => $this->vendor->id,
                 'business_name' => $this->vendor->business_name,

@@ -73,7 +73,7 @@ class MobileOrderController extends Controller
     {
         abort_if($order->user_id !== $request->user()->id, 403, 'Forbidden.');
 
-        $order->load(['vendor:id,business_name,logo_url,city', 'items.product:id,name,primary_image_url']);
+        $order->load(['vendor:id,business_name,logo_url,city', 'items.product:id,name,primary_image_url', 'items.productPack']);
 
         return response()->json(['success' => true, 'data' => $order]);
     }
@@ -106,9 +106,11 @@ class MobileOrderController extends Controller
                 'cancellation_reason' => $validated['reason'] ?? 'Cancelled by customer.',
             ]);
 
-            // Release reserved stock for tracked products
-            foreach ($order->load('items.product.inventory')->items as $item) {
-                if ($item->product?->inventory && $item->product->inventory->reserved_stock >= $item->quantity) {
+            // Release reserved stock for tracked products / packs
+            foreach ($order->load('items.product.inventory', 'items.productPack')->items as $item) {
+                if ($item->productPack) {
+                    $item->productPack->increment('stock_quantity', $item->quantity);
+                } elseif ($item->product?->inventory && $item->product->inventory->reserved_stock >= $item->quantity) {
                     $item->product->inventory->decrement('reserved_stock', $item->quantity);
                 }
             }
@@ -307,7 +309,7 @@ class MobileOrderController extends Controller
 
         $cart = Cart::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with('items.product')
+            ->with(['items.product', 'items.productPack'])
             ->first();
 
         if (! $cart || $cart->items->isEmpty()) {
@@ -354,19 +356,29 @@ class MobileOrderController extends Controller
 
         // Validate stock availability and B2B MOQ before creating the order
         foreach ($cart->items as $item) {
-            $inventory = $item->product->inventory;
+            if ($item->product_pack_id && $item->productPack) {
+                $available = $item->productPack->stock_quantity;
+                if ($available < $item->quantity) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Insufficient stock for \"{$item->product->name} ({$item->productPack->name})\". Available: {$available}.",
+                    ], 422);
+                }
+            } else {
+                $inventory = $item->product->inventory;
 
-            // If no inventory record exists, stock is not tracked — allow the order
-            if ($inventory === null) {
-                continue;
-            }
+                // If no inventory record exists, stock is not tracked — allow the order
+                if ($inventory === null) {
+                    continue;
+                }
 
-            $available = $inventory->available_stock;
-            if ($available < $item->quantity) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Insufficient stock for \"{$item->product->name}\". Available: {$available}.",
-                ], 422);
+                $available = $inventory->available_stock;
+                if ($available < $item->quantity) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Insufficient stock for \"{$item->product->name}\". Available: {$available}.",
+                    ], 422);
+                }
             }
 
             // Enforce minimum order quantity for B2B orders
@@ -380,12 +392,17 @@ class MobileOrderController extends Controller
         }
 
         $order = DB::transaction(function () use ($user, $cart, $validated, $vendorId, $isB2B, $orderType) {
-            // Resolve per-item unit price: use wholesale_price for B2B if set
+            // Resolve per-item unit price: use wholesale_price for B2B if set (for base products)
+            // Wait, for product packs we use the cart item's unit price which is already pack-specific.
             $lineItems = $cart->items->map(function ($item) use ($isB2B) {
                 $product = $item->product;
-                $unitPrice = $isB2B && $product->wholesale_price !== null
-                    ? (float) $product->wholesale_price
-                    : (float) $item->unit_price;
+                if ($item->product_pack_id && $item->productPack) {
+                    $unitPrice = (float) $item->unit_price;
+                } else {
+                    $unitPrice = $isB2B && $product->wholesale_price !== null
+                        ? (float) $product->wholesale_price
+                        : (float) $item->unit_price;
+                }
 
                 return [
                     'item' => $item,
@@ -424,8 +441,9 @@ class MobileOrderController extends Controller
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item->product_id,
-                    'product_name' => $item->product->name,
-                    'product_sku' => $item->product->sku,
+                    'product_pack_id' => $item->product_pack_id,
+                    'product_name' => $item->productPack ? "{$item->product->name} ({$item->productPack->name})" : $item->product->name,
+                    'product_sku' => $item->productPack ? ($item->productPack->sku ?? $item->product->sku) : $item->product->sku,
                     'quantity' => $item->quantity,
                     'unit_price' => $line['unit_price'],
                     'discount_amount' => 0,
@@ -433,8 +451,10 @@ class MobileOrderController extends Controller
                     'total_price' => $line['total'],
                 ]);
 
-                // Decrement reserved stock
-                if ($item->product->inventory) {
+                // Decrement stock for packs, or increment reserved_stock for standard products
+                if ($item->productPack) {
+                    $item->productPack->decrement('stock_quantity', $item->quantity);
+                } elseif ($item->product->inventory) {
                     $item->product->inventory->increment('reserved_stock', $item->quantity);
                 }
             }
