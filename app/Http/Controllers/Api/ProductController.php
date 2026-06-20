@@ -218,13 +218,6 @@ class ProductController extends Controller
      */
     public function destroy(Product $product): JsonResponse
     {
-        if ($product->orderItems()->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This product has existing orders and cannot be deleted. Mark it inactive instead.',
-            ], 422);
-        }
-
         $product->delete();
 
         return response()->json([
