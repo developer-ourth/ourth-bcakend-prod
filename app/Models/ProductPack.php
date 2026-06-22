@@ -10,12 +10,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ProductPack extends Model
 {
     use HasFactory, SoftDeletes;
-
     protected $fillable = [
         'product_id',
         'name',
         'base_price',
         'discounted_price',
+        'wholesale_price',
+        'wholesale_discounted_price',
+        'min_order_quantity',
         'sku',
         'stock_quantity',
         'is_active',
@@ -26,6 +28,9 @@ class ProductPack extends Model
         return [
             'base_price' => 'decimal:2',
             'discounted_price' => 'decimal:2',
+            'wholesale_price' => 'decimal:2',
+            'wholesale_discounted_price' => 'decimal:2',
+            'min_order_quantity' => 'integer',
             'stock_quantity' => 'integer',
             'is_active' => 'boolean',
         ];

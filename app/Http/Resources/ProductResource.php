@@ -23,6 +23,7 @@ class ProductResource extends JsonResource
             'base_price' => $this->base_price,
             'discounted_price' => $this->discounted_price,
             'wholesale_price' => $this->wholesale_price,
+            'wholesale_discounted_price' => $this->wholesale_discounted_price,
             'min_order_quantity' => $this->min_order_quantity,
             'primary_image_url' => $this->primary_image_url,
             'secondary_images' => $this->secondary_images ?? [],
