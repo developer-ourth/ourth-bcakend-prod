@@ -20,6 +20,7 @@ class MediaController extends Controller
             'png' => 'image/png',
             'gif' => 'image/gif',
             'webp' => 'image/webp',
+            'pdf' => 'application/pdf',
             default => 'application/octet-stream',
         };
 

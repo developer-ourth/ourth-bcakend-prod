@@ -90,7 +90,7 @@ class VendorDiscoveryController extends Controller
 
         $vendor->load([
             'products' => fn ($q) => $q->where('is_active', true)
-                ->select(['id', 'vendor_id', 'name', 'description', 'category', 'base_price', 'discounted_price', 'primary_image_url', 'is_featured'])
+                ->select(['id', 'vendor_id', 'name', 'description', 'category', 'base_price', 'discounted_price', 'wholesale_price', 'min_order_quantity', 'primary_image_url', 'is_featured'])
                 ->with(['inventory:id,product_id,current_stock', 'packs']),
         ]);
 
@@ -120,7 +120,7 @@ class VendorDiscoveryController extends Controller
 
         $query = Product::select([
             'id', 'vendor_id', 'category_id', 'name', 'description', 'category',
-            'base_price', 'discounted_price', 'primary_image_url', 'is_featured',
+            'base_price', 'discounted_price', 'wholesale_price', 'min_order_quantity', 'primary_image_url', 'is_featured',
         ])
             ->where('is_active', true)
             ->whereHas('vendor', fn ($q) => $q->where('kyc_status', 'verified'))

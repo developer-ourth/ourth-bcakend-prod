@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
         ]);
 
+        // Support authenticating API requests via token query parameter (e.g. for browser downloads)
+        $middleware->api(prepend: [
+            \App\Http\Middleware\QueryTokenAuthentication::class,
+        ]);
+
         // Register custom middleware aliases
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,

@@ -351,7 +351,7 @@ class MobileOrderController extends Controller
             $cart->update(['vendor_id' => $vendorId]);
         }
 
-        $isB2B = ($validated['order_type'] ?? 'b2c') === 'b2b';
+        $isB2B = ($validated['order_type'] ?? ($user->role === 'vendor' ? 'b2b' : 'b2c')) === 'b2b';
         $orderType = $isB2B ? 'b2b' : 'b2c';
 
         // Validate stock availability and B2B MOQ before creating the order
@@ -418,7 +418,7 @@ class MobileOrderController extends Controller
                 'vendor_id' => $vendorId,
                 'buyer_vendor_id' => $user->vendor?->id,
                 'order_type' => $orderType,
-                'buyer_gstin' => $isB2B ? ($validated['buyer_gstin'] ?? null) : null,
+                'buyer_gstin' => $isB2B ? ($validated['buyer_gstin'] ?? $user->vendor?->gstin) : null,
                 'order_status' => 'pending',
                 'payment_status' => 'pending',
                 'subtotal' => $subtotal,

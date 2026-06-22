@@ -77,6 +77,7 @@ class VendorDashboardController extends Controller
                 'average_rating' => $vendor->average_rating,
                 'total_orders' => $vendor->total_orders,
                 'total_revenue' => $vendor->total_revenue,
+                'kyc_documents' => $vendor->kycDocuments()->latest()->get(),
             ],
             'today' => [
                 'orders' => $todayStat?->total_orders ?? 0,

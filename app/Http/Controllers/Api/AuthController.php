@@ -85,6 +85,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'role' => $user->role,
                     'vendor_id' => $vendor->id,
+                    'kyc_status' => $vendor->kyc_status,
                 ],
             ],
         ]);
@@ -124,6 +125,7 @@ class AuthController extends Controller
         $user->update(['last_login_at' => now()]);
 
         $vendorId = $user->role === 'vendor' ? $user->vendor?->id : null;
+        $kycStatus = $user->role === 'vendor' ? $user->vendor?->kyc_status : null;
 
         return response()->json([
             'success' => true,
@@ -136,6 +138,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'role' => $user->role,
                     'vendor_id' => $vendorId,
+                    'kyc_status' => $kycStatus,
                 ],
             ],
         ]);
@@ -147,28 +150,45 @@ class AuthController extends Controller
      * POST /api/v1/auth/register
      * { "name": "...", "email": "...", "password": "...", "password_confirmation": "..." }
      */
-    public function register(Request $request)
+    public function register(Request $request, \App\Services\VendorService $vendorService)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:15|unique:users,phone',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'nullable|in:consumer',
+            'role' => 'nullable|in:consumer,vendor',
+            'business_name' => 'nullable|string|max:255',
+            'gstin' => 'nullable|string|max:15|unique:vendors,gstin',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'password' => Hash::make($request->password),
-            'role' => 'consumer',
-            'email_verified_at' => now(),
-        ]);
+        $role = $request->input('role', 'consumer');
+
+        if ($role === 'vendor') {
+            $result = $vendorService->register([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone ?? '',
+                'password' => $request->password,
+                'business_name' => $request->business_name ?? $request->name,
+                'gstin' => $request->gstin,
+            ]);
+            $user = User::find($result['user']['id']);
+        } else {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'password' => Hash::make($request->password),
+                'role' => 'consumer',
+                'email_verified_at' => now(),
+            ]);
+        }
 
         $token = $user->createToken('dashboard')->plainTextToken;
 
         $vendorId = $user->role === 'vendor' ? $user->vendor?->id : null;
+        $kycStatus = $user->role === 'vendor' ? $user->vendor?->kyc_status : null;
 
         return response()->json([
             'success' => true,
@@ -181,6 +201,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'role' => $user->role,
                     'vendor_id' => $vendorId,
+                    'kyc_status' => $kycStatus,
                 ],
             ],
         ], 201);
@@ -195,6 +216,7 @@ class AuthController extends Controller
     {
         $u = $request->user();
         $vendorId = $u->role === 'vendor' ? $u->vendor?->id : null;
+        $kycStatus = $u->role === 'vendor' ? $u->vendor?->kyc_status : null;
 
         return response()->json([
             'success' => true,
@@ -204,6 +226,7 @@ class AuthController extends Controller
                 'email' => $u->email,
                 'role' => $u->role,
                 'vendor_id' => $vendorId,
+                'kyc_status' => $kycStatus,
             ],
         ]);
     }

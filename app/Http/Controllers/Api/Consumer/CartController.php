@@ -94,7 +94,12 @@ class CartController extends Controller
             'last_activity_at' => now(),
         ]);
 
-        $unitPrice = $pack ? ($pack->discounted_price ?? $pack->base_price) : ($product->discounted_price ?? $product->base_price);
+        $isB2B = $user->role === 'vendor';
+        $unitPrice = $pack 
+            ? ($pack->discounted_price ?? $pack->base_price) 
+            : ($isB2B && $product->wholesale_price !== null 
+                ? $product->wholesale_price 
+                : ($product->discounted_price ?? $product->base_price));
 
         $item = $cart->items()
             ->where('product_id', $product->id)

@@ -137,6 +137,47 @@ class VendorController extends Controller
     }
 
     /**
+     * Upload KYC document file directly
+     *
+     * POST /api/v1/vendors/kyc/upload-file
+     */
+    public function uploadKycDocumentFile(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'vendor_id' => 'required|exists:vendors,id',
+            'document_type' => 'required|string|in:gst_certificate,trade_license,pan_card,aadhar,bank_statement',
+            'document' => 'required|file|mimes:jpeg,png,jpg,pdf|max:5120', // 5MB max
+        ]);
+
+        try {
+            $disk = config('filesystems.default', 'local') === 'local' ? 'public' : config('filesystems.default');
+            $path = $request->file('document')->store('uploads', $disk);
+            $url = route('media.show', ['path' => $path]);
+
+            $kyc = VendorKycDocument::create([
+                'vendor_id' => $validated['vendor_id'],
+                'document_type' => $validated['document_type'],
+                'document_url' => $url,
+                'status' => 'submitted',
+            ]);
+
+            // Dispatch event for async processing
+            event(new KYCDocumentSubmitted($kyc));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document uploaded and submitted successfully',
+                'data' => $kyc,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Upload failed: '.$e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
      * Get vendor approval status
      *
      * GET /api/v1/vendors/{vendor}/approval-status

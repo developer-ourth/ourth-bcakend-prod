@@ -22,6 +22,8 @@ class ProductResource extends JsonResource
             'sub_category' => $this->sub_category,
             'base_price' => $this->base_price,
             'discounted_price' => $this->discounted_price,
+            'wholesale_price' => $this->wholesale_price,
+            'min_order_quantity' => $this->min_order_quantity,
             'primary_image_url' => $this->primary_image_url,
             'secondary_images' => $this->secondary_images ?? [],
             'unit' => $this->unit,

@@ -64,6 +64,7 @@ Route::prefix('v1')->group(function () {
         // Public endpoints (no auth required for registration)
         Route::post('/register', [VendorController::class, 'register']);
         Route::post('/kyc/upload', [VendorController::class, 'uploadKyc']);
+        Route::post('/kyc/upload-file', [VendorController::class, 'uploadKycDocumentFile']);
         Route::get('/{vendor}/approval-status', [VendorController::class, 'approvalStatus']);
         Route::get('/{vendor}/qr', [VendorController::class, 'getQrCode']);
 

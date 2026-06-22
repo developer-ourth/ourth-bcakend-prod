@@ -54,6 +54,8 @@ class OrderController extends Controller
             'confirmed_at',
             'dispatched_at',
             'delivered_at',
+            'order_type',
+            'buyer_gstin',
         ])
             ->with(['vendor:id,business_name', 'items']);
 
@@ -77,6 +79,8 @@ class OrderController extends Controller
                 'total_amount' => $order->total_amount,
                 'created_at' => $order->created_at,
                 'items_count' => $order->items?->count() ?? 0,
+                'order_type' => $order->order_type,
+                'buyer_gstin' => $order->buyer_gstin,
             ];
         });
 
