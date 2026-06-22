@@ -30,6 +30,7 @@ class ProductResource extends JsonResource
             'unit' => $this->unit,
             'stock_quantity' => $this->stock_quantity,
             'weight_grams' => $this->weight_grams,
+            'dimensions_cm' => $this->dimensions_cm,
             'is_active' => $this->is_active,
             'is_featured' => $this->is_featured,
             'packs' => ProductPackResource::collection($this->whenLoaded('packs')),
