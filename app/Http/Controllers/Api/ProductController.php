@@ -70,6 +70,23 @@ class ProductController extends Controller
     }
 
     /**
+     * GET /api/v1/products/{product}/ratings
+     * Public — get ratings for a product.
+     */
+    public function ratings(Product $product): JsonResponse
+    {
+        $ratings = $product->ratings()
+            ->with(['reviewer:id,name'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $ratings,
+        ]);
+    }
+
+    /**
      * POST /api/v1/admin/products
      * Admin — create a new product.
      */

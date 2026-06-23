@@ -115,6 +115,7 @@ Route::prefix('v1')->group(function () {
     // Public product & category listing (no auth required)
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
+    Route::get('/products/{product}/ratings', [ProductController::class, 'ratings']);
 
     // Admin product & category management
     Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
