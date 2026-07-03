@@ -52,6 +52,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/login-vendor', [AuthController::class, 'loginWithVendorId']);
         Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/google', [AuthController::class, 'google']);
+        Route::post('/otp/send', [AuthController::class, 'sendOtp']);
+        Route::post('/otp/verify', [AuthController::class, 'verifyOtp']);
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
         Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');

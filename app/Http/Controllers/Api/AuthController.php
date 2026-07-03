@@ -347,4 +347,133 @@ class AuthController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Password has been reset successfully.']);
     }
+
+    /**
+     * Google Login.
+     */
+    public function google(Request $request)
+    {
+        $request->validate(['id_token' => 'required|string']);
+
+        try {
+            $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
+            $payload = $client->verifyIdToken($request->id_token);
+
+            if (!$payload) {
+                return response()->json(['success' => false, 'message' => 'Invalid Google token.'], 401);
+            }
+
+            $email = $payload['email'];
+            $name = $payload['name'] ?? 'Google User';
+
+            $user = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => Hash::make(Str::random(24)),
+                    'role' => 'consumer',
+                    'email_verified_at' => now(),
+                ]
+            );
+
+            // Revoke old tokens
+            $user->tokens()->where('name', 'dashboard')->delete();
+            $token = $user->createToken('dashboard')->plainTextToken;
+
+            $user->update(['last_login_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Google login successful',
+                'data' => [
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'vendor_id' => $user->role === 'vendor' ? $user->vendor?->id : null,
+                        'kyc_status' => $user->role === 'vendor' ? $user->vendor?->kyc_status : null,
+                    ],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Google login failed: ' . $e->getMessage()], 401);
+        }
+    }
+
+    /**
+     * Send OTP.
+     */
+    public function sendOtp(Request $request)
+    {
+        $request->validate(['phone' => 'required|string']);
+
+        $otp = (string) rand(100000, 999999);
+        $phone = $request->phone;
+
+        // Store OTP in cache for 5 minutes
+        \Illuminate\Support\Facades\Cache::put('otp_' . $phone, $otp, now()->addMinutes(5));
+
+        // Simulate SMS sending by logging it
+        \Illuminate\Support\Facades\Log::info("Mock SMS sent to $phone with OTP: $otp");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP sent successfully (check backend logs for the code).',
+        ]);
+    }
+
+    /**
+     * Verify OTP.
+     */
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'phone' => 'required|string',
+            'otp' => 'required|string'
+        ]);
+
+        $phone = $request->phone;
+        $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_' . $phone);
+
+        if (!$cachedOtp || $cachedOtp !== $request->otp) {
+            throw ValidationException::withMessages([
+                'otp' => ['Invalid or expired OTP.'],
+            ]);
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('otp_' . $phone);
+
+        $user = User::firstOrCreate(
+            ['phone' => $phone],
+            [
+                'name' => 'User ' . substr($phone, -4),
+                'email' => $phone . '@placeholder.com',
+                'password' => Hash::make(Str::random(24)),
+                'role' => 'consumer',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $user->tokens()->where('name', 'dashboard')->delete();
+        $token = $user->createToken('dashboard')->plainTextToken;
+        $user->update(['last_login_at' => now()]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP verified successfully',
+            'data' => [
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'vendor_id' => $user->role === 'vendor' ? $user->vendor?->id : null,
+                    'kyc_status' => $user->role === 'vendor' ? $user->vendor?->kyc_status : null,
+                ],
+            ],
+        ]);
+    }
 }
