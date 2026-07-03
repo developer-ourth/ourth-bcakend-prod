@@ -15,6 +15,7 @@ class Order extends Model
         'user_id',
         'order_number',
         'uuid',
+        'source',
         'vendor_id',
         'buyer_vendor_id',
         'order_type',

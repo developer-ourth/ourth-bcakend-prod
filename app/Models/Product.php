@@ -27,6 +27,7 @@ class Product extends Model
         'wholesale_discounted_price',
         'min_order_quantity',
         'primary_image_url',
+        'app_primary_image_url',
         'secondary_images',
         'weight_grams',
         'dimensions_cm',

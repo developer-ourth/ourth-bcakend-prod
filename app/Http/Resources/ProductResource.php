@@ -26,6 +26,7 @@ class ProductResource extends JsonResource
             'wholesale_discounted_price' => $this->wholesale_discounted_price,
             'min_order_quantity' => $this->min_order_quantity,
             'primary_image_url' => $this->primary_image_url,
+            'app_primary_image_url' => $this->app_primary_image_url ?: $this->primary_image_url,
             'secondary_images' => $this->secondary_images ?? [],
             'unit' => $this->unit,
             'stock_quantity' => $this->stock_quantity,

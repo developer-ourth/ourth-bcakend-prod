@@ -107,6 +107,7 @@ class ProductController extends Controller
             'sku' => 'nullable|string|max:100|unique:products,sku',
             'barcode' => 'nullable|string|max:100',
             'primary_image_url' => 'nullable|url',
+            'app_primary_image_url' => 'nullable|url',
             'secondary_images' => 'nullable|array',
             'secondary_images.*' => 'url',
             'weight_grams' => 'nullable|numeric|min:0',

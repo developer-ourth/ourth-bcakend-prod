@@ -41,6 +41,7 @@ class OrderController extends Controller
         $perPage = $request->query('per_page', 15);
         $status = $request->query('status', null);
         $vendorId = $request->query('vendor_id', null);
+        $source = $request->query('source', null);
 
         $query = Order::select([
             'id',
@@ -56,6 +57,7 @@ class OrderController extends Controller
             'delivered_at',
             'order_type',
             'buyer_gstin',
+            'source',
         ])
             ->with(['vendor:id,business_name', 'items']);
 
@@ -65,6 +67,10 @@ class OrderController extends Controller
 
         if ($vendorId) {
             $query->where('vendor_id', $vendorId);
+        }
+
+        if ($source && in_array($source, ['app', 'website'])) {
+            $query->where('source', $source);
         }
 
         $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
@@ -81,6 +87,7 @@ class OrderController extends Controller
                 'items_count' => $order->items?->count() ?? 0,
                 'order_type' => $order->order_type,
                 'buyer_gstin' => $order->buyer_gstin,
+                'source' => $order->source,
             ];
         });
 
@@ -131,6 +138,7 @@ class OrderController extends Controller
             'delivery_country' => 'required|string|max:100',
             'delivery_phone' => 'required|string|max:20',
             'customer_notes' => 'nullable|string|max:500',
+            'source' => 'nullable|in:app,website',
         ]);
 
         try {
@@ -149,6 +157,7 @@ class OrderController extends Controller
                 'delivery_country' => $validated['delivery_country'],
                 'delivery_phone' => $validated['delivery_phone'],
                 'customer_notes' => $validated['customer_notes'] ?? null,
+                'source' => $validated['source'] ?? 'website',
             ]);
 
             foreach ($validated['items'] as $item) {

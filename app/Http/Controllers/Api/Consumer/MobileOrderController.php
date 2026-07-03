@@ -419,6 +419,7 @@ class MobileOrderController extends Controller
                 'buyer_vendor_id' => $user->vendor?->id,
                 'order_type' => $orderType,
                 'buyer_gstin' => $isB2B ? ($validated['buyer_gstin'] ?? $user->vendor?->gstin) : null,
+                'source' => $validated['source'] ?? 'website',
                 'order_status' => 'pending',
                 'payment_status' => 'pending',
                 'subtotal' => $subtotal,
