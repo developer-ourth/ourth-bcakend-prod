@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\UploadController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\Api\Consumer\AddressController;
 use App\Http\Controllers\Api\Consumer\CartController;
 use App\Http\Controllers\Api\Consumer\DeviceTokenController;
@@ -45,6 +46,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
         ->name('media.show');
+
+    // App Settings (Public)
+    Route::get('/app-settings', [AppSettingController::class, 'index']);
 
     // Authentication Routes (no auth required)
     // Throttle: 10 attempts per minute per IP to prevent brute-force attacks
@@ -128,6 +132,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/products', [ProductController::class, 'store']);
         Route::put('/products/{product}', [ProductController::class, 'update']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+
+        Route::post('/app-settings', [AppSettingController::class, 'store']);
 
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{category}', [CategoryController::class, 'update']);

@@ -15,7 +15,7 @@ class UploadController extends Controller
     public function image(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'image' => 'required|file|mimes:jpeg,png,jpg,gif,webp,mp4,mov,avi,webm,mkv|max:20480',
         ]);
 
         $disk = config('filesystems.default', 'local') === 'local' ? 'public' : config('filesystems.default');
