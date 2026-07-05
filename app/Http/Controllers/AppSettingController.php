@@ -28,6 +28,9 @@ class AppSettingController extends Controller
         if (!$settings->has('banner_subtagline')) {
             $settings['banner_subtagline'] = '100% Organic, Natural & Compostable';
         }
+        if (!$settings->has('app_text_color')) {
+            $settings['app_text_color'] = '#2C1F13';
+        }
 
         return response()->json($settings);
     }
@@ -40,6 +43,7 @@ class AppSettingController extends Controller
         $data = $request->validate([
             'app_background_color' => 'nullable|string',
             'header_background_color' => 'nullable|string',
+            'app_text_color' => 'nullable|string',
             'banner_tagline' => 'nullable|string',
             'banner_subtagline' => 'nullable|string',
             'banner_image_url' => 'nullable|string',
