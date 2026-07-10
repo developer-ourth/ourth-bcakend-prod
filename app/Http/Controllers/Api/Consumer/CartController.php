@@ -139,7 +139,7 @@ class CartController extends Controller
     {
         $this->authorizeCartItem($request, $item);
 
-        $request->validate(['quantity' => ['required', 'integer', 'min:0', 'max:100']]);
+        $request->validate(['quantity' => ['required', 'integer', 'min:0', 'max:100000']]);
 
         if ($request->quantity === 0) {
             $item->delete();
