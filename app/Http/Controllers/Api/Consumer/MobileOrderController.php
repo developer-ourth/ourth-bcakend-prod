@@ -351,8 +351,12 @@ class MobileOrderController extends Controller
             $cart->update(['vendor_id' => $vendorId]);
         }
 
+        // Track who ordered it (b2c or b2b) based on their account
         $isB2B = ($validated['order_type'] ?? ($user->role === 'vendor' ? 'b2b' : 'b2c')) === 'b2b';
         $orderType = $isB2B ? 'b2b' : 'b2c';
+        
+        // Temporarily disabled for now: B2B and B2C use the same rate, and MOQ is disabled.
+        $applyB2BPricing = false;
 
         // Validate stock availability and B2B MOQ before creating the order
         foreach ($cart->items as $item) {
@@ -383,7 +387,7 @@ class MobileOrderController extends Controller
 
             // Enforce minimum order quantity for B2B orders
             $moq = (int) ($item->product->min_order_quantity ?? 1);
-            if ($isB2B && $item->quantity < $moq) {
+            if ($applyB2BPricing && $item->quantity < $moq) {
                 return response()->json([
                     'success' => false,
                     'message' => "Minimum order quantity for \"{$item->product->name}\" is {$moq} units.",
@@ -399,7 +403,7 @@ class MobileOrderController extends Controller
                 if ($item->product_pack_id && $item->productPack) {
                     $unitPrice = (float) $item->unit_price;
                 } else {
-                    $unitPrice = $isB2B && $product->wholesale_price !== null
+                    $unitPrice = $applyB2BPricing && $product->wholesale_price !== null
                         ? (float) $product->wholesale_price
                         : (float) $item->unit_price;
                 }

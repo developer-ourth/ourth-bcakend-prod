@@ -94,9 +94,12 @@ class CartController extends Controller
             'last_activity_at' => now(),
         ]);
 
-        $isB2B = $user->role === 'vendor';
+        // Temporarily disabled for now: B2B and B2C use the same rate.
+        $isB2B = false; // $user->role === 'vendor';
         $unitPrice = $pack 
-            ? ($pack->discounted_price ?? $pack->base_price) 
+            ? ($isB2B && $pack->wholesale_price !== null
+                ? $pack->wholesale_price
+                : ($pack->discounted_price ?? $pack->base_price))
             : ($isB2B && $product->wholesale_price !== null 
                 ? $product->wholesale_price 
                 : ($product->discounted_price ?? $product->base_price));
