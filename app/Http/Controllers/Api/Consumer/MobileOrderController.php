@@ -10,7 +10,9 @@ use App\Models\DeliveryTracking;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\TaxProfile;
 use App\Models\User;
+use App\Services\ShadowfaxService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +20,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
@@ -287,8 +290,24 @@ class MobileOrderController extends Controller
             ]);
             $payment->save();
 
-            $order->update(['payment_status' => 'paid']);
+            $order->update([
+                'payment_status' => 'paid',
+                'status' => 'confirmed'
+            ]);
+
+            // Auto-fulfill via Shadowfax
+            $shadowfax = new ShadowfaxService();
+            $logisticsInfo = $shadowfax->createOrder($order);
+            if ($logisticsInfo) {
+                $order->update([
+                    'awb_number' => $logisticsInfo['awb_number'],
+                    'tracking_url' => $logisticsInfo['tracking_url']
+                ]);
+            }
         });
+
+        // Also if COD, trigger shadowfax somewhere else (like in store() method)
+
 
         return response()->json([
             'success' => true,
@@ -395,10 +414,10 @@ class MobileOrderController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($user, $cart, $validated, $vendorId, $isB2B, $orderType) {
+        $order = DB::transaction(function () use ($user, $cart, $validated, $vendorId, $isB2B, $orderType, $applyB2BPricing) {
             // Resolve per-item unit price: use wholesale_price for B2B if set (for base products)
             // Wait, for product packs we use the cart item's unit price which is already pack-specific.
-            $lineItems = $cart->items->map(function ($item) use ($isB2B) {
+            $lineItems = $cart->items->map(function ($item) use ($isB2B, $applyB2BPricing) {
                 $product = $item->product;
                 if ($item->product_pack_id && $item->productPack) {
                     $unitPrice = (float) $item->unit_price;
@@ -481,6 +500,19 @@ class MobileOrderController extends Controller
 
             return $order;
         });
+
+        // If COD, mark as confirmed and trigger logistics
+        if ($validated['payment_method'] === 'cod') {
+            $order->update(['status' => 'confirmed']);
+            $shadowfax = new ShadowfaxService();
+            $logisticsInfo = $shadowfax->createOrder($order);
+            if ($logisticsInfo) {
+                $order->update([
+                    'awb_number' => $logisticsInfo['awb_number'],
+                    'tracking_url' => $logisticsInfo['tracking_url']
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,

@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorController;
+use App\Http\Controllers\Api\RazorpayWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -42,6 +43,9 @@ use Illuminate\Support\Facades\Route;
  * Phase 2: Can add /api/v2 routes for new services/features without breaking v1
  */
 Route::prefix('v1')->group(function () {
+
+    // Razorpay Webhook (Public)
+    Route::post('/webhook/razorpay', [RazorpayWebhookController::class, 'handle']);
 
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
@@ -57,7 +61,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/login-vendor', [AuthController::class, 'loginWithVendorId']);
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/google', [AuthController::class, 'google']);
-        Route::post('/otp/send', [AuthController::class, 'sendOtp']);
+        Route::post('/otp/send-email', [AuthController::class, 'sendEmailOtp']);
         Route::post('/otp/verify', [AuthController::class, 'verifyOtp']);
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);

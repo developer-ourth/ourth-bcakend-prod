@@ -403,66 +403,111 @@ class AuthController extends Controller
     }
 
     /**
-     * Send OTP.
+     * Send Email OTP.
      */
-    public function sendOtp(Request $request)
+    public function sendEmailOtp(Request $request)
     {
-        $request->validate(['phone' => 'required|string']);
+        $request->validate(['email' => 'required|email']);
 
         $otp = (string) rand(100000, 999999);
-        $phone = $request->phone;
+        $email = $request->email;
 
         // Store OTP in cache for 5 minutes
-        \Illuminate\Support\Facades\Cache::put('otp_' . $phone, $otp, now()->addMinutes(5));
+        \Illuminate\Support\Facades\Cache::put('otp_' . $email, $otp, now()->addMinutes(5));
 
-        // Simulate SMS sending by logging it
-        \Illuminate\Support\Facades\Log::info("Mock SMS sent to $phone with OTP: $otp");
+        // Send Email via Resend SMTP
+        try {
+            \Illuminate\Support\Facades\Mail::raw("Your OURTH login OTP is: $otp. This code is valid for 5 minutes.", function ($message) use ($email) {
+                $message->to($email)
+                        ->subject('Your OURTH Login OTP');
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send OTP to $email. " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to send email.'], 500);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'OTP sent successfully (check backend logs for the code).',
+            'message' => 'OTP sent successfully to your email.',
         ]);
     }
 
     /**
-     * Verify OTP.
+     * Verify OTP (Email or Firebase Phone Auth).
      */
     public function verifyOtp(Request $request)
     {
         $request->validate([
-            'phone' => 'required|string',
-            'otp' => 'required|string'
+            'identifier' => 'required|string', // phone or email
+            'otp' => 'required|string', // email 6-digit OTP OR Firebase idToken for phone
+            'type' => 'required|in:email,phone'
         ]);
 
-        $phone = $request->phone;
-        $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_' . $phone);
+        $identifier = $request->identifier;
+        $type = $request->type;
 
-        if (!$cachedOtp || $cachedOtp !== $request->otp) {
-            throw ValidationException::withMessages([
-                'otp' => ['Invalid or expired OTP.'],
+        if ($type === 'email') {
+            $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_' . $identifier);
+            if (!$cachedOtp || $cachedOtp !== $request->otp) {
+                throw ValidationException::withMessages([
+                    'otp' => ['Invalid or expired OTP.'],
+                ]);
+            }
+            \Illuminate\Support\Facades\Cache::forget('otp_' . $identifier);
+        } else {
+            // For phone, the OTP field is actually the Firebase ID Token
+            $idToken = $request->otp;
+            try {
+                // Verify Firebase ID Token via Google Identity Toolkit API
+                $apiKey = env('FIREBASE_API_KEY'); // Ensure this is set in .env
+                if (!$apiKey) {
+                    throw new \Exception("FIREBASE_API_KEY not configured.");
+                }
+                
+                $response = \Illuminate\Support\Facades\Http::post("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}", [
+                    'idToken' => $idToken,
+                ]);
+                
+                if (!$response->successful() || empty($response->json()['users'])) {
+                    throw new \Exception("Invalid Firebase token.");
+                }
+                
+                $firebaseUser = $response->json()['users'][0];
+                $verifiedPhone = $firebaseUser['phoneNumber']; // e.g. +919876543210
+                
+                if ($verifiedPhone !== $identifier) {
+                    throw new \Exception("Token phone number does not match requested number.");
+                }
+            } catch (\Exception $e) {
+                throw ValidationException::withMessages([
+                    'otp' => ['Invalid phone verification.'],
+                ]);
+            }
+        }
+
+        // Check if user exists
+        $user = User::where($type === 'email' ? 'email' : 'phone', $identifier)->first();
+
+        // If user doesn't exist, we don't create one immediately. We return a flag requesting profile completion.
+        if (!$user) {
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP verified. Profile completion required.',
+                'requires_profile_completion' => true,
+                'identifier' => $identifier,
+                'type' => $type
             ]);
         }
 
-        \Illuminate\Support\Facades\Cache::forget('otp_' . $phone);
-
-        $user = User::firstOrCreate(
-            ['phone' => $phone],
-            [
-                'name' => 'User ' . substr($phone, -4),
-                'email' => $phone . '@placeholder.com',
-                'password' => Hash::make(Str::random(24)),
-                'role' => 'consumer',
-                'email_verified_at' => now(),
-            ]
-        );
-
+        // Proceed with login
         $user->tokens()->where('name', 'dashboard')->delete();
         $token = $user->createToken('dashboard')->plainTextToken;
         $user->update(['last_login_at' => now()]);
 
         return response()->json([
             'success' => true,
-            'message' => 'OTP verified successfully',
+            'message' => 'Login successful',
+            'requires_profile_completion' => false,
             'data' => [
                 'token' => $token,
                 'user' => [

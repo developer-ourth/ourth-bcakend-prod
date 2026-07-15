@@ -39,6 +39,12 @@ return [
         'key' => env('RAZORPAY_KEY_ID'),
         'secret' => env('RAZORPAY_KEY_SECRET'),
         'base_url' => env('RAZORPAY_BASE_URL', 'https://api.razorpay.com'),
+        'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
+    ],
+
+    'shadowfax' => [
+        'api_token' => env('SHADOWFAX_API_TOKEN'),
+        'base_url' => env('SHADOWFAX_BASE_URL', 'https://api.shadowfax.in'),
     ],
 
 ];
