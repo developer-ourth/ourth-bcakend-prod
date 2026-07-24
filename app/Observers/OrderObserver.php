@@ -9,6 +9,7 @@ use App\Models\Notification;
 use App\Models\Order;
 use App\Services\ExpoPushService;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class OrderObserver
 {
@@ -46,7 +47,11 @@ class OrderObserver
         // Queue confirmation email
         $user = $order->user;
         if ($user?->email) {
-            Mail::to($user->email)->queue(new OrderPlacedEmail($user, $order->loadCount('items')));
+            try {
+                Mail::to($user->email)->queue(new OrderPlacedEmail($user, $order->loadCount('items')));
+            } catch (\Throwable $e) {
+                Log::error("Failed to queue order placed email for order #{$order->id}: " . $e->getMessage());
+            }
         }
     }
 
@@ -97,7 +102,11 @@ class OrderObserver
         // Queue status update email
         $user = $order->user;
         if ($user?->email) {
-            Mail::to($user->email)->queue(new OrderStatusUpdatedEmail($user, $order->order_number, $status));
+            try {
+                Mail::to($user->email)->queue(new OrderStatusUpdatedEmail($user, $order->order_number, $status));
+            } catch (\Throwable $e) {
+                Log::error("Failed to queue order status updated email for order #{$order->id}: " . $e->getMessage());
+            }
         }
     }
 }
