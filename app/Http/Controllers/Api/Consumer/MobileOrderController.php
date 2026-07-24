@@ -323,6 +323,7 @@ class MobileOrderController extends Controller
      */
     public function store(CheckoutRequest $request): JsonResponse
     {
+      try {
         $user = $request->user();
         $validated = $request->validated();
 
@@ -519,6 +520,20 @@ class MobileOrderController extends Controller
             'message' => 'Order placed successfully.',
             'data' => $order->load(['items', 'vendor:id,business_name']),
         ], 201);
+
+      } catch (\Throwable $e) {
+            Log::error('Checkout failed: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Checkout error: ' . $e->getMessage(),
+                'debug_file' => $e->getFile(),
+                'debug_line' => $e->getLine(),
+            ], 500);
+      }
     }
 
     /**
