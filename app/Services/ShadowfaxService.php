@@ -9,12 +9,12 @@ use App\Models\Order;
 class ShadowfaxService
 {
     protected string $baseUrl;
-    protected string $token;
+    protected ?string $token;
 
     public function __construct()
     {
         $this->baseUrl = config('services.shadowfax.base_url', 'https://api.shadowfax.in');
-        $this->token = config('services.shadowfax.api_token', '');
+        $this->token = config('services.shadowfax.api_token') ?: '';
     }
 
     /**
