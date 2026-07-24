@@ -54,6 +54,22 @@ Route::prefix('v1')->group(function () {
     // App Settings (Public)
     Route::get('/app-settings', [AppSettingController::class, 'index']);
 
+    // Temporary Migration Runner
+    Route::get('/run-migrations-abcxyz', function () {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            return response()->json([
+                'success' => true,
+                'output' => \Illuminate\Support\Facades\Artisan::output(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    });
+
     // Authentication Routes (no auth required)
     // Throttle: 10 attempts per minute per IP to prevent brute-force attacks
     Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
