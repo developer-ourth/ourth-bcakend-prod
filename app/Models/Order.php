@@ -41,6 +41,8 @@ class Order extends Model
         'delivered_at',
         'cancelled_at',
         'cancellation_reason',
+        'awb_number',
+        'tracking_url',
     ];
 
     protected function casts(): array
