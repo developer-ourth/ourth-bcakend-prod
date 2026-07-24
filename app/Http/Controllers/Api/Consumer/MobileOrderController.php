@@ -292,7 +292,7 @@ class MobileOrderController extends Controller
 
             $order->update([
                 'payment_status' => 'paid',
-                'status' => 'confirmed'
+                'order_status' => 'confirmed'
             ]);
 
             // Auto-fulfill via Shadowfax
@@ -503,7 +503,7 @@ class MobileOrderController extends Controller
 
         // If COD, mark as confirmed and trigger logistics
         if ($validated['payment_method'] === 'cod') {
-            $order->update(['status' => 'confirmed']);
+            $order->update(['order_status' => 'confirmed']);
             $shadowfax = new ShadowfaxService();
             $logisticsInfo = $shadowfax->createOrder($order);
             if ($logisticsInfo) {

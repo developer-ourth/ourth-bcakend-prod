@@ -65,9 +65,9 @@ class RazorpayWebhookController extends Controller
 
         $order = Order::where('razorpay_order_id', $razorpayOrderId)->first();
 
-        if ($order && $order->status === 'pending') {
+        if ($order && $order->order_status === 'pending') {
             $order->update([
-                'status' => 'confirmed'
+                'order_status' => 'confirmed'
             ]);
             Log::info("Order {$order->id} marked as confirmed via Razorpay Webhook.");
             
