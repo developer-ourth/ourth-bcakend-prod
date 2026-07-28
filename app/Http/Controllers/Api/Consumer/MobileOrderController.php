@@ -45,8 +45,7 @@ class MobileOrderController extends Controller
         ]);
 
         $query = Order::where('user_id', $request->user()->id)
-            ->select(['id', 'order_number', 'vendor_id', 'order_status', 'payment_status', 'total_amount', 'created_at', 'delivered_at', 'cancelled_at'])
-            ->with('vendor:id,business_name,logo_url')
+            ->with(['vendor:id,business_name,logo_url', 'items.product:id,name,primary_image_url', 'items.productPack'])
             ->withCount('items');
 
         if ($request->filled('status')) {
