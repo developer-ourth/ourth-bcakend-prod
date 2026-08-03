@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Consumer\AddToCartRequest;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\Coupon;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class CartController extends Controller
             ->with([
                 'items' => fn ($q) => $q->with(['product:id,name,primary_image_url,base_price,discounted_price', 'productPack']),
                 'vendor:id,business_name,logo_url,city',
+                'coupon',
             ])
             ->first();
 
@@ -42,6 +44,59 @@ class CartController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $cart]);
+    }
+
+    /**
+     * Apply a coupon to the cart.
+     */
+    public function applyCoupon(Request $request): JsonResponse
+    {
+        $request->validate(['code' => 'required|string']);
+        
+        $coupon = Coupon::where('code', $request->code)->first();
+
+        if (!$coupon || !$coupon->isValid()) {
+            return response()->json(['success' => false, 'message' => 'Invalid or expired coupon code.'], 400);
+        }
+
+        $cart = Cart::where('user_id', $request->user()->id)->where('status', 'active')->first();
+        if (!$cart) {
+            return response()->json(['success' => false, 'message' => 'Cart is empty.'], 400);
+        }
+
+        if ($coupon->product_id && !$cart->items()->where('product_id', $coupon->product_id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'This coupon is not valid for any items in your cart.'], 400);
+        }
+
+        $cart->coupon_id = $coupon->id;
+        $cart->save();
+
+        $this->recalculateCart($cart);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Coupon applied successfully.',
+            'data' => $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+        ]);
+    }
+
+    /**
+     * Remove applied coupon.
+     */
+    public function removeCoupon(Request $request): JsonResponse
+    {
+        $cart = Cart::where('user_id', $request->user()->id)->where('status', 'active')->first();
+        if ($cart) {
+            $cart->coupon_id = null;
+            $cart->save();
+            $this->recalculateCart($cart);
+        }
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'Coupon removed.', 
+            'data' => $cart ? $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']) : null
+        ]);
     }
 
     /**
@@ -191,13 +246,32 @@ class CartController extends Controller
         return response()->json(['success' => true, 'message' => 'Cart cleared.']);
     }
 
-    /** Recalculate and persist cart totals. */
     private function recalculateCart(Cart $cart): void
     {
-        $cart->load('items');
+        $cart->load('items', 'coupon');
+        $subtotal = $cart->items->sum('total_price');
+        $totalItems = $cart->items->sum('quantity');
+        $discountAmount = 0;
+
+        if ($cart->coupon && $cart->coupon->isValid()) {
+            if ($cart->coupon->product_id) {
+                // Apply discount only to specific product
+                $eligibleItem = $cart->items->where('product_id', $cart->coupon->product_id)->first();
+                if ($eligibleItem) {
+                    $discountAmount = $eligibleItem->total_price * ($cart->coupon->discount_percentage / 100);
+                }
+            } else {
+                // Apply discount to whole cart
+                $discountAmount = $subtotal * ($cart->coupon->discount_percentage / 100);
+            }
+        } else {
+            $cart->coupon_id = null;
+        }
+
         $cart->update([
-            'total_amount' => $cart->items->sum('total_price'),
-            'total_items' => $cart->items->sum('quantity'),
+            'total_amount' => max(0, $subtotal - $discountAmount),
+            'discount_amount' => $discountAmount,
+            'total_items' => $totalItems,
             'last_activity_at' => now(),
         ]);
     }

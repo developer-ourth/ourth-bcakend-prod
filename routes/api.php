@@ -158,6 +158,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{category}', [CategoryController::class, 'update']);
         Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
+
+        Route::apiResource('coupons', \App\Http\Controllers\Admin\AdminCouponController::class);
     });
 
     // =========================================================================
@@ -253,6 +255,8 @@ Route::prefix('v1')->group(function () {
             Route::patch('/cart/items/{item}', [CartController::class, 'updateItem']);
             Route::delete('/cart/items/{item}', [CartController::class, 'removeItem']);
             Route::delete('/cart', [CartController::class, 'clear']);
+            Route::post('/cart/coupon', [CartController::class, 'applyCoupon']);
+            Route::delete('/cart/coupon', [CartController::class, 'removeCoupon']);
         });
 
         // Orders

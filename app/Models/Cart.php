@@ -17,12 +17,15 @@ class Cart extends Model
         'last_activity_at',
         'converted_at',
         'converted_to_order_id',
+        'coupon_id',
+        'discount_amount',
     ];
 
     protected function casts(): array
     {
         return [
             'total_amount' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'last_activity_at' => 'datetime',
             'converted_at' => 'datetime',
         ];
@@ -41,5 +44,10 @@ class Cart extends Model
     public function items(): HasMany
     {
         return $this->hasMany(CartItem::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 }

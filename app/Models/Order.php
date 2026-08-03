@@ -43,6 +43,7 @@ class Order extends Model
         'cancellation_reason',
         'awb_number',
         'tracking_url',
+        'coupon_id',
     ];
 
     protected function casts(): array
@@ -133,6 +134,11 @@ class Order extends Model
     public function return()
     {
         return $this->hasOne(ReturnRequest::class);
+    }
+
+    public function coupon()
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function scopePending($query)
