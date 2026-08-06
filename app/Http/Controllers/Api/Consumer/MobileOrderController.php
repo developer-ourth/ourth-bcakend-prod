@@ -294,15 +294,15 @@ class MobileOrderController extends Controller
                 'order_status' => 'confirmed'
             ]);
 
-            // Shadowfax disabled – using third-party delivery
-            // $shadowfax = new ShadowfaxService();
-            // $logisticsInfo = $shadowfax->createOrder($order);
-            // if ($logisticsInfo) {
-            //     $order->update([
-            //         'awb_number' => $logisticsInfo['awb_number'],
-            //         'tracking_url' => $logisticsInfo['tracking_url']
-            //     ]);
-            // }
+            // Push to Shadowfax delivery
+            $shadowfax = new ShadowfaxService();
+            $logisticsInfo = $shadowfax->createOrder($order);
+            if ($logisticsInfo) {
+                $order->update([
+                    'awb_number' => $logisticsInfo['awb_number'],
+                    'tracking_url' => $logisticsInfo['tracking_url']
+                ]);
+            }
         });
 
         // Also if COD, trigger shadowfax somewhere else (like in store() method)
@@ -501,17 +501,17 @@ class MobileOrderController extends Controller
             return $order;
         });
 
-        // If COD, mark as confirmed (Shadowfax disabled – using third-party delivery)
+        // If COD, mark as confirmed and push to shadowfax
         if ($validated['payment_method'] === 'cod') {
             $order->update(['order_status' => 'confirmed']);
-            // $shadowfax = new ShadowfaxService();
-            // $logisticsInfo = $shadowfax->createOrder($order);
-            // if ($logisticsInfo) {
-            //     $order->update([
-            //         'awb_number' => $logisticsInfo['awb_number'],
-            //         'tracking_url' => $logisticsInfo['tracking_url']
-            //     ]);
-            // }
+            $shadowfax = new ShadowfaxService();
+            $logisticsInfo = $shadowfax->createOrder($order);
+            if ($logisticsInfo) {
+                $order->update([
+                    'awb_number' => $logisticsInfo['awb_number'],
+                    'tracking_url' => $logisticsInfo['tracking_url']
+                ]);
+            }
         }
 
         return response()->json([
