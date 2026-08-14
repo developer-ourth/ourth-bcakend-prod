@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\RazorpayWebhookController;
+use App\Http\Controllers\Api\ShadowfaxWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -46,6 +47,9 @@ Route::prefix('v1')->group(function () {
 
     // Razorpay Webhook (Public)
     Route::post('/webhook/razorpay', [RazorpayWebhookController::class, 'handle']);
+
+    // Shadowfax Webhook (Public)
+    Route::post('/webhooks/shadowfax', [ShadowfaxWebhookController::class, 'handleWebhook']);
 
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
