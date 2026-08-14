@@ -45,8 +45,8 @@ class ShadowfaxService
                     'actual_weight' => 1.0, // Calculate from order items if available
                     'volumetric_weight' => 1.0,
                     'product_value' => $order->total_amount,
-                    'payment_mode' => $order->payment_gateway === 'cod' ? 'COD' : 'Prepaid',
-                    'cod_amount' => $order->payment_gateway === 'cod' ? $order->total_amount : 0,
+                    'payment_mode' => $order->payment?->payment_gateway === 'cod' ? 'COD' : 'Prepaid',
+                    'cod_amount' => $order->payment?->payment_gateway === 'cod' ? $order->total_amount : 0,
                     'total_amount' => $order->total_amount,
                     'order_service' => 'forward'
                 ],
