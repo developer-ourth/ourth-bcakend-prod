@@ -37,14 +37,19 @@ class ShadowfaxService
         }
 
         try {
-            // Shadowfax requires detailed pickup/drop addresses, package dimensions, etc.
-            // This is a template for the real Shadowfax v3 API structure.
+            // Shadowfax Unified API v3 payload structure for Warehouse Model
             $payload = [
-                'client_order_id' => 'ORD-' . $order->id,
-                'actual_weight' => 1.0, // Should be calculated from order items
-                'volumetric_weight' => 1.0,
-                'payment_mode' => $order->payment_gateway === 'cod' ? 'COD' : 'Prepaid',
-                'order_amount' => $order->total_amount,
+                'order_type' => 'warehouse',
+                'order_details' => [
+                    'client_order_id' => 'ORD-' . $order->id,
+                    'actual_weight' => 1.0, // Calculate from order items if available
+                    'volumetric_weight' => 1.0,
+                    'product_value' => $order->total_amount,
+                    'payment_mode' => $order->payment_gateway === 'cod' ? 'COD' : 'Prepaid',
+                    'cod_amount' => $order->payment_gateway === 'cod' ? $order->total_amount : 0,
+                    'total_amount' => $order->total_amount,
+                    'order_service' => 'forward'
+                ],
                 'customer_details' => [
                     'name' => 'Customer', // Would map from order->address
                     'contact' => '9999999999',
@@ -52,19 +57,43 @@ class ShadowfaxService
                     'city' => 'Mumbai',
                     'state' => 'MH',
                     'pincode' => '400001',
+                    'location_type' => 'residential'
                 ],
                 'pickup_details' => [
+                    'unique_code' => 'WH01',
                     'name' => 'Healing Ourth Warehouse',
                     'contact' => '1800OURTHCARE',
                     'address_line_1' => 'Main Warehouse',
                     'city' => 'Mumbai',
                     'state' => 'MH',
                     'pincode' => '400001',
+                ],
+                'rto_details' => [
+                    'unique_code' => 'WH01',
+                    'name' => 'Healing Ourth Returns',
+                    'contact' => '1800OURTHCARE',
+                    'address_line_1' => 'Returns Processing',
+                    'city' => 'Mumbai',
+                    'state' => 'MH',
+                    'pincode' => '400001',
+                ],
+                'product_details' => [
+                    [
+                        'name' => 'Healing Ourth Product',
+                        'quantity' => 1,
+                        'price' => $order->total_amount,
+                        'seller_details' => [
+                            'name' => 'Healing Ourth India Pvt Ltd'
+                        ]
+                    ]
                 ]
             ];
 
-            // In reality, this makes an HTTP POST to Shadowfax
-            $response = Http::withToken($this->token)->post("{$this->baseUrl}/api/v3/orders", $payload);
+            // Make HTTP POST to Shadowfax Unified API
+            $response = Http::withHeaders([
+                'Authorization' => "Token {$this->token}",
+                'Accept' => 'application/json'
+            ])->post("{$this->baseUrl}/api/v3/clients/orders/", $payload);
             
             if ($response->successful()) {
                 $data = $response->json();
