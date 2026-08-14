@@ -14,6 +14,17 @@ class ShadowfaxWebhookController extends Controller
      */
     public function handleWebhook(Request $request)
     {
+        $expectedToken = env('SHADOWFAX_WEBHOOK_TOKEN', 'OurthWebhookSecret123!');
+        
+        // Shadowfax might send it as "Token <value>", "Bearer <value>", or just "<value>"
+        $authHeader = $request->header('Authorization', '');
+        $providedToken = str_replace(['Token ', 'Bearer '], '', $authHeader);
+
+        if (empty($providedToken) || $providedToken !== $expectedToken) {
+            Log::warning('Shadowfax Webhook Unauthorized Attempt', ['header' => $authHeader]);
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $payload = $request->all();
         
         // Log the incoming payload for auditing
