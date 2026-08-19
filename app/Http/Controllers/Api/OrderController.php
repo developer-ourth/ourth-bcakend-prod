@@ -59,7 +59,7 @@ class OrderController extends Controller
             'buyer_gstin',
             'source',
         ])
-            ->with(['vendor:id,business_name', 'items']);
+            ->with(['vendor:id,business_name', 'items', 'payment:id,order_id,payment_gateway,payment_method']);
 
         if ($status && in_array($status, ['pending', 'confirmed', 'processing', 'out_for_delivery', 'delivered', 'cancelled'])) {
             $query->where('order_status', $status);
@@ -88,6 +88,7 @@ class OrderController extends Controller
                 'order_type' => $order->order_type,
                 'buyer_gstin' => $order->buyer_gstin,
                 'source' => $order->source,
+                'payment_method' => $order->payment?->payment_method ?? ($order->payment?->payment_gateway ?? '—'),
             ];
         });
 
