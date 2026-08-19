@@ -328,7 +328,7 @@ class MobileOrderController extends Controller
 
         $cart = Cart::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with(['items.product', 'items.productPack'])
+            ->with(['items.product', 'items.productPack', 'coupon'])
             ->first();
 
         if (! $cart || $cart->items->isEmpty()) {
@@ -436,6 +436,26 @@ class MobileOrderController extends Controller
 
             $subtotal = $lineItems->sum('total');
 
+            // Calculate coupon discounts
+            $discountAmount = 0;
+            $couponId = null;
+
+            if ($cart->coupon && $cart->coupon->isValid()) {
+                $couponId = $cart->coupon->id;
+                if ($cart->coupon->product_id) {
+                    $eligibleItem = $lineItems->first(function ($line) use ($cart) {
+                        return $line['item']->product_id === $cart->coupon->product_id;
+                    });
+                    if ($eligibleItem) {
+                        $discountAmount = $eligibleItem['total'] * ($cart->coupon->discount_percentage / 100);
+                    }
+                } else {
+                    $discountAmount = $subtotal * ($cart->coupon->discount_percentage / 100);
+                }
+            }
+
+            $totalAmount = max(0, $subtotal - $discountAmount);
+
             $order = Order::create([
                 'user_id' => $user->id,
                 'vendor_id' => $vendorId,
@@ -446,10 +466,10 @@ class MobileOrderController extends Controller
                 'order_status' => 'pending',
                 'payment_status' => 'pending',
                 'subtotal' => $subtotal,
-                'discount_amount' => 0,
+                'discount_amount' => $discountAmount,
                 'delivery_charge' => 0,
                 'tax_amount' => 0,
-                'total_amount' => $subtotal,
+                'total_amount' => $totalAmount,
                 'delivery_address_line1' => $validated['delivery_address_line1'],
                 'delivery_address_line2' => $validated['delivery_address_line2'] ?? null,
                 'delivery_city' => $validated['delivery_city'],
@@ -458,6 +478,7 @@ class MobileOrderController extends Controller
                 'delivery_country' => $validated['delivery_country'] ?? 'India',
                 'delivery_phone' => $validated['delivery_phone'],
                 'customer_notes' => $validated['customer_notes'] ?? null,
+                'coupon_id' => $couponId,
             ]);
 
             foreach ($lineItems as $line) {
@@ -487,7 +508,7 @@ class MobileOrderController extends Controller
                 'order_id' => $order->id,
                 'payment_gateway' => $validated['payment_method'] === 'cod' ? 'cod' : 'razorpay',
                 'payment_method' => $validated['payment_method'],
-                'amount' => $subtotal,
+                'amount' => $totalAmount,
                 'status' => 'pending',
             ]);
 
