@@ -59,8 +59,18 @@ class ProductController extends Controller
      * GET /api/v1/products/{product}
      * Public — single product detail.
      */
-    public function show(Product $product): JsonResponse
+    public function show(string $idOrSku): JsonResponse
     {
+        $query = Product::query();
+        if (is_numeric($idOrSku)) {
+            $query->where(function ($q) use ($idOrSku) {
+                $q->where('id', $idOrSku)->orWhere('sku', $idOrSku);
+            });
+        } else {
+            $query->where('sku', $idOrSku);
+        }
+        $product = $query->firstOrFail();
+
         $product->load(['category', 'vendor', 'packs']);
 
         return response()->json([
@@ -73,8 +83,18 @@ class ProductController extends Controller
      * GET /api/v1/products/{product}/ratings
      * Public — get ratings for a product.
      */
-    public function ratings(Product $product): JsonResponse
+    public function ratings(string $idOrSku): JsonResponse
     {
+        $query = Product::query();
+        if (is_numeric($idOrSku)) {
+            $query->where(function ($q) use ($idOrSku) {
+                $q->where('id', $idOrSku)->orWhere('sku', $idOrSku);
+            });
+        } else {
+            $query->where('sku', $idOrSku);
+        }
+        $product = $query->firstOrFail();
+
         $ratings = $product->ratings()
             ->with(['reviewer:id,name'])
             ->orderByDesc('created_at')
