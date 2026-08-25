@@ -12,9 +12,9 @@ class Product extends Model
 
     protected $fillable = [
         'vendor_id',
-        'vendor_id',
         'category_id',
         'name',
+        'slug',
         'description',
         'sku',
         'barcode',
@@ -107,6 +107,11 @@ class Product extends Model
     public function scopeByCategory($query, $category)
     {
         return $query->where('category', $category);
+    }
+
+    public function getSlugAttribute($value)
+    {
+        return $value ?: \Illuminate\Support\Str::slug($this->name);
     }
 
     public function getAvailableStockAttribute()

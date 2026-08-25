@@ -64,10 +64,12 @@ class ProductController extends Controller
         $query = Product::query();
         if (is_numeric($idOrSku)) {
             $query->where(function ($q) use ($idOrSku) {
-                $q->where('id', $idOrSku)->orWhere('sku', $idOrSku);
+                $q->where('id', $idOrSku)->orWhere('sku', $idOrSku)->orWhere('slug', $idOrSku);
             });
         } else {
-            $query->where('sku', $idOrSku);
+            $query->where(function ($q) use ($idOrSku) {
+                $q->where('sku', $idOrSku)->orWhere('slug', $idOrSku);
+            });
         }
         $product = $query->firstOrFail();
 
@@ -88,10 +90,12 @@ class ProductController extends Controller
         $query = Product::query();
         if (is_numeric($idOrSku)) {
             $query->where(function ($q) use ($idOrSku) {
-                $q->where('id', $idOrSku)->orWhere('sku', $idOrSku);
+                $q->where('id', $idOrSku)->orWhere('sku', $idOrSku)->orWhere('slug', $idOrSku);
             });
         } else {
-            $query->where('sku', $idOrSku);
+            $query->where(function ($q) use ($idOrSku) {
+                $q->where('sku', $idOrSku)->orWhere('slug', $idOrSku);
+            });
         }
         $product = $query->firstOrFail();
 
