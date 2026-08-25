@@ -473,14 +473,18 @@ class AuthController extends Controller
                 }
                 
                 $firebaseUser = $response->json()['users'][0];
-                $verifiedPhone = $firebaseUser['phoneNumber']; // e.g. +919876543210
+                $verifiedPhone = $firebaseUser['phoneNumber'] ?? ''; // e.g. +919876543210
                 
-                if ($verifiedPhone !== $identifier) {
-                    throw new \Exception("Token phone number does not match requested number.");
+                $cleanVerified = preg_replace('/\D/', '', $verifiedPhone);
+                $cleanIdentifier = preg_replace('/\D/', '', $identifier);
+
+                if (empty($cleanVerified) || ($cleanVerified !== $cleanIdentifier && !str_ends_with($cleanVerified, $cleanIdentifier) && !str_ends_with($cleanIdentifier, $cleanVerified))) {
+                    throw new \Exception("Token phone number ({$verifiedPhone}) does not match requested number ({$identifier}).");
                 }
             } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Phone OTP verification failed for identifier '{$identifier}': " . $e->getMessage());
                 throw ValidationException::withMessages([
-                    'otp' => ['Invalid phone verification.'],
+                    'otp' => ['Invalid phone verification. ' . $e->getMessage()],
                 ]);
             }
         }
