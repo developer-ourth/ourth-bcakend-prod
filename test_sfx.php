@@ -9,7 +9,7 @@ echo "Order: {$order->order_number}\n";
 echo "Payment: {$order->payment?->payment_gateway}\n";
 echo "Address: {$order->delivery_address_line1}\n";
 echo "City: {$order->delivery_city}\n";
-echo "Pincode: {$order->delivery_pincode}\n";
+echo "Pincode: {$order->delivery_postal_code}\n";
 echo "Phone: {$order->delivery_phone}\n";
 echo "Name: {$order->delivery_name}\n\n";
 

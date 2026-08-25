@@ -31,8 +31,13 @@ class ShadowfaxService
         }
 
         try {
-            // Determine payment mode from the payment relationship
-            $isCod = $order->payment?->payment_gateway === 'cod';
+            // Determine payment mode from payment relation or order property
+            $gateway = strtolower($order->payment?->payment_gateway ?? $order->payment?->payment_method ?? $order->payment_method ?? '');
+            $isCod = $gateway === 'cod';
+
+            // Resolve pincode accurately from database column delivery_postal_code
+            $pincodeRaw = $order->delivery_postal_code ?: ($order->delivery_pincode ?? '110001');
+            $pincode = (int) preg_replace('/\D/', '', (string) $pincodeRaw) ?: 110001;
 
             // Build payload per Shadowfax Unified API v3 docs
             // Using marketplace model as per the Apiary documentation
@@ -55,7 +60,7 @@ class ShadowfaxService
                     'address_line_2' => $order->delivery_address_line2 ?: '',
                     'city' => $order->delivery_city ?: 'Mumbai',
                     'state' => $order->delivery_state ?: 'Maharashtra',
-                    'pincode' => (int) ($order->delivery_pincode ?: 110001),
+                    'pincode' => $pincode,
                 ],
                 'pickup_details' => [
                     'name' => 'Ourth Warehouse',
