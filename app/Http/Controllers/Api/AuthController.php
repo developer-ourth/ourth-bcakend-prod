@@ -461,16 +461,28 @@ class AuthController extends Controller
 
         if ($apiKey) {
             try {
+                // Try Quick SMS route ("q") first, fallback to "otp" route
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     'authorization' => $apiKey,
                     'Content-Type' => 'application/json',
                 ])->post('https://www.fast2sms.com/dev/bulkV2', [
-                    'variables_values' => $otp,
-                    'route' => 'otp',
+                    'route' => 'q',
+                    'message' => "Your OURTH login OTP is: {$otp}. Valid for 5 minutes.",
                     'numbers' => $clean10Digit,
                 ]);
 
-                \Illuminate\Support\Facades\Log::info("Fast2SMS OTP response for {$clean10Digit}: " . $response->body());
+                if (!$response->successful() || str_contains($response->body(), '"return":false')) {
+                    $response = \Illuminate\Support\Facades\Http::withHeaders([
+                        'authorization' => $apiKey,
+                        'Content-Type' => 'application/json',
+                    ])->post('https://www.fast2sms.com/dev/bulkV2', [
+                        'variables_values' => $otp,
+                        'route' => 'otp',
+                        'numbers' => $clean10Digit,
+                    ]);
+                }
+
+                \Illuminate\Support\Facades\Log::info("Fast2SMS response for {$clean10Digit}: " . $response->body());
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("Fast2SMS API Exception for {$clean10Digit}: " . $e->getMessage());
             }
