@@ -433,59 +433,122 @@ class AuthController extends Controller
     }
 
     /**
-     * Verify OTP (Email or Firebase Phone Auth).
+     * Send Phone OTP via Fast2SMS.
+     */
+    public function sendPhoneOtp(Request $request)
+    {
+        $request->validate(['phone' => 'required|string']);
+
+        $rawPhone = trim($request->phone);
+        $cleanPhone = preg_replace('/\D/', '', $rawPhone);
+        if (strlen($cleanPhone) >= 10) {
+            $clean10Digit = substr($cleanPhone, -10);
+        } else {
+            $clean10Digit = $cleanPhone;
+        }
+
+        if (strlen($clean10Digit) < 10) {
+            return response()->json(['success' => false, 'message' => 'Please enter a valid 10-digit mobile number.'], 422);
+        }
+
+        $otp = (string) rand(100000, 999999);
+
+        // Store OTP in cache for 5 minutes (store for both raw and 10-digit formats)
+        \Illuminate\Support\Facades\Cache::put('otp_phone_' . $rawPhone, $otp, now()->addMinutes(5));
+        \Illuminate\Support\Facades\Cache::put('otp_phone_' . $clean10Digit, $otp, now()->addMinutes(5));
+
+        $apiKey = env('FAST2SMS_API_KEY');
+
+        if ($apiKey) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'authorization' => $apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post('https://www.fast2sms.com/dev/bulkV2', [
+                    'variables_values' => $otp,
+                    'route' => 'otp',
+                    'numbers' => $clean10Digit,
+                ]);
+
+                \Illuminate\Support\Facades\Log::info("Fast2SMS OTP response for {$clean10Digit}: " . $response->body());
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Fast2SMS API Exception for {$clean10Digit}: " . $e->getMessage());
+            }
+        } else {
+            \Illuminate\Support\Facades\Log::info("FAST2SMS_API_KEY not set. Generated test OTP for {$clean10Digit}: {$otp}");
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP sent successfully to your mobile number.',
+        ]);
+    }
+
+    /**
+     * Verify OTP (Email or Phone via Fast2SMS / Firebase).
      */
     public function verifyOtp(Request $request)
     {
         $request->validate([
             'identifier' => 'required|string', // phone or email
-            'otp' => 'required|string', // email 6-digit OTP OR Firebase idToken for phone
+            'otp' => 'required|string', // email/phone 6-digit OTP OR Firebase idToken for phone
             'type' => 'required|in:email,phone'
         ]);
 
-        $identifier = $request->identifier;
+        $identifier = trim($request->identifier);
         $type = $request->type;
+        $otp = trim($request->otp);
 
         if ($type === 'email') {
             $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_' . $identifier);
-            if (!$cachedOtp || $cachedOtp !== $request->otp) {
+            if (!$cachedOtp || $cachedOtp !== $otp) {
                 throw ValidationException::withMessages([
                     'otp' => ['Invalid or expired OTP.'],
                 ]);
             }
             \Illuminate\Support\Facades\Cache::forget('otp_' . $identifier);
         } else {
-            // For phone, the OTP field is actually the Firebase ID Token
-            $idToken = $request->otp;
-            try {
-                // Verify Firebase ID Token via Google Identity Toolkit API
-                $apiKey = env('FIREBASE_API_KEY'); // Ensure this is set in .env
-                if (!$apiKey) {
-                    throw new \Exception("FIREBASE_API_KEY not configured.");
-                }
-                
-                $response = \Illuminate\Support\Facades\Http::post("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}", [
-                    'idToken' => $idToken,
-                ]);
-                
-                if (!$response->successful() || empty($response->json()['users'])) {
-                    throw new \Exception("Invalid Firebase token.");
-                }
-                
-                $firebaseUser = $response->json()['users'][0];
-                $verifiedPhone = $firebaseUser['phoneNumber'] ?? ''; // e.g. +919876543210
-                
-                $cleanVerified = preg_replace('/\D/', '', $verifiedPhone);
-                $cleanIdentifier = preg_replace('/\D/', '', $identifier);
+            // Check direct cached 6-digit SMS OTP first (Fast2SMS flow)
+            $cleanPhone = preg_replace('/\D/', '', $identifier);
+            $clean10Digit = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
 
-                if (empty($cleanVerified) || ($cleanVerified !== $cleanIdentifier && !str_ends_with($cleanVerified, $cleanIdentifier) && !str_ends_with($cleanIdentifier, $cleanVerified))) {
-                    throw new \Exception("Token phone number ({$verifiedPhone}) does not match requested number ({$identifier}).");
+            $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_phone_' . $identifier) 
+                         ?? \Illuminate\Support\Facades\Cache::get('otp_phone_' . $clean10Digit);
+
+            if ($cachedOtp && $cachedOtp === $otp) {
+                \Illuminate\Support\Facades\Cache::forget('otp_phone_' . $identifier);
+                \Illuminate\Support\Facades\Cache::forget('otp_phone_' . $clean10Digit);
+            } else {
+                // Fallback: Check if it's a Firebase ID Token
+                $idToken = $otp;
+                try {
+                    $apiKey = env('FIREBASE_API_KEY');
+                    if (!$apiKey) {
+                        throw new \Exception("Invalid or expired OTP.");
+                    }
+                    
+                    $response = \Illuminate\Support\Facades\Http::post("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}", [
+                        'idToken' => $idToken,
+                    ]);
+                    
+                    if (!$response->successful() || empty($response->json()['users'])) {
+                        throw new \Exception("Invalid verification token.");
+                    }
+                    
+                    $firebaseUser = $response->json()['users'][0];
+                    $verifiedPhone = $firebaseUser['phoneNumber'] ?? '';
+                    
+                    $cleanVerified = preg_replace('/\D/', '', $verifiedPhone);
+
+                    if (empty($cleanVerified) || ($cleanVerified !== $cleanPhone && !str_ends_with($cleanVerified, $cleanPhone) && !str_ends_with($cleanPhone, $cleanVerified))) {
+                        throw new \Exception("Phone number does not match verification.");
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Phone OTP verification failed for '{$identifier}': " . $e->getMessage());
+                    throw ValidationException::withMessages([
+                        'otp' => ['Invalid or expired OTP.'],
+                    ]);
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Phone OTP verification failed for identifier '{$identifier}': " . $e->getMessage());
-                throw ValidationException::withMessages([
-                    'otp' => ['Invalid phone verification. ' . $e->getMessage()],
-                ]);
             }
         }
 

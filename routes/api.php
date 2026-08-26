@@ -82,6 +82,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/google', [AuthController::class, 'google']);
         Route::post('/otp/send-email', [AuthController::class, 'sendEmailOtp']);
+        Route::post('/otp/send-phone', [AuthController::class, 'sendPhoneOtp']);
+        Route::post('/otp/send-sms', [AuthController::class, 'sendPhoneOtp']);
         Route::post('/otp/send', [AuthController::class, 'sendEmailOtp']);
         Route::post('/otp/verify', [AuthController::class, 'verifyOtp']);
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
