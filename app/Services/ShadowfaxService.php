@@ -120,4 +120,41 @@ class ShadowfaxService
             return null;
         }
     }
+
+    /**
+     * Calculate dynamic location-based delivery charge using Shadowfax distance slabs.
+     *
+     * Pickup Hub: 400001 (Mumbai)
+     * - Mumbai Local (400xxx): ₹35
+     * - Metro Hubs (Delhi 110, Bangalore 560, Kolkata 700, Chennai 600, Hyderabad 500, MH 40-44): ₹50
+     * - Rest of India: ₹70
+     */
+    public static function calculateDeliveryCharge(?string $pincode, float $subtotal = 0): float
+    {
+        if (empty($pincode)) {
+            return 40.0;
+        }
+
+        $cleanPin = preg_replace('/\D/', '', (string) $pincode);
+        if (strlen($cleanPin) < 3) {
+            return 40.0;
+        }
+
+        $prefix3 = substr($cleanPin, 0, 3);
+        $prefix2 = substr($cleanPin, 0, 2);
+
+        // Mumbai local slab
+        if ($prefix3 >= '400' && $prefix3 <= '404') {
+            return 35.0;
+        }
+
+        // Metro Hubs & Maharashtra region slab
+        $metroPrefixes = ['110', '111', '112', '700', '600', '560', '500', '411', '412'];
+        if (in_array($prefix3, $metroPrefixes) || ($prefix2 >= '40' && $prefix2 <= '44')) {
+            return 50.0;
+        }
+
+        // Rest of India national slab
+        return 70.0;
+    }
 }

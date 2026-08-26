@@ -454,7 +454,8 @@ class MobileOrderController extends Controller
                 }
             }
 
-            $totalAmount = max(0, $subtotal - $discountAmount);
+            $deliveryCharge = ShadowfaxService::calculateDeliveryCharge($validated['delivery_postal_code'] ?? null, $subtotal);
+            $totalAmount = max(0, $subtotal - $discountAmount + $deliveryCharge);
 
             $order = Order::create([
                 'user_id' => $user->id,
@@ -467,7 +468,7 @@ class MobileOrderController extends Controller
                 'payment_status' => 'pending',
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
-                'delivery_charge' => 0,
+                'delivery_charge' => $deliveryCharge,
                 'tax_amount' => 0,
                 'total_amount' => $totalAmount,
                 'delivery_address_line1' => $validated['delivery_address_line1'],
