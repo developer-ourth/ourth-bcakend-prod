@@ -12,6 +12,7 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\TaxProfile;
 use App\Models\User;
+use App\Mail\OrderPlacedEmail;
 use App\Services\ShadowfaxService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -536,6 +538,9 @@ class MobileOrderController extends Controller
             }
         }
 
+        // Send order placement email alerts to Customer & Admin
+        $this->sendOrderEmails($order);
+
         return response()->json([
             'success' => true,
             'message' => 'Order placed successfully.',
@@ -666,5 +671,66 @@ class MobileOrderController extends Controller
         $filename = 'invoice-'.$order->order_number.'.pdf';
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Send order placement emails to both Customer and Admin.
+     */
+    private function sendOrderEmails(Order $order): void
+    {
+        try {
+            $user = $order->user;
+            $adminEmail = env('ADMIN_NOTIFICATION_EMAIL', 'hoiplorders@gmail.com');
+
+            // 1. Send confirmation email to Customer
+            if ($user && $user->email) {
+                try {
+                    Mail::to($user->email)->send(new OrderPlacedEmail($user, $order->loadCount('items')));
+                    Log::info("Order confirmation email sent to customer {$user->email} for order #{$order->id}");
+                } catch (\Throwable $e) {
+                    Log::error("Failed to send order placed email to customer {$user->email}: " . $e->getMessage());
+                }
+            }
+
+            // 2. Send instant alert email to Admin / Store Owner
+            if ($adminEmail) {
+                try {
+                    $custName = $user->name ?? 'Customer';
+                    $custEmail = $user->email ?? 'N/A';
+                    $itemsSummary = "";
+                    foreach ($order->load('items')->items as $item) {
+                        $itemsSummary .= "- {$item->product_name} x {$item->quantity} (₹" . number_format((float) $item->total_price, 2) . ")\n";
+                    }
+
+                    Mail::raw(
+                        "🎉 NEW WEBSITE ORDER RECEIVED!\n\n" .
+                        "Order Number: #{$order->order_number}\n" .
+                        "Customer Name: {$custName}\n" .
+                        "Customer Email: {$custEmail}\n" .
+                        "Phone: {$order->delivery_phone}\n\n" .
+                        "Items Ordered:\n" . $itemsSummary . "\n" .
+                        "Subtotal: ₹" . number_format((float) $order->subtotal, 2) . "\n" .
+                        "Delivery Fee: ₹" . number_format((float) $order->delivery_charge, 2) . "\n" .
+                        "Discount: -₹" . number_format((float) $order->discount_amount, 2) . "\n" .
+                        "Total Paid: ₹" . number_format((float) $order->total_amount, 2) . "\n" .
+                        "Payment Method: " . strtoupper($order->payment?->payment_method ?? 'COD') . "\n\n" .
+                        "Delivery Address:\n" .
+                        "{$order->delivery_address_line1}\n" .
+                        ($order->delivery_address_line2 ? "{$order->delivery_address_line2}\n" : "") .
+                        "{$order->delivery_city}, {$order->delivery_state} - {$order->delivery_postal_code}\n\n" .
+                        "Check your Admin Dashboard to manage this order.",
+                        function ($msg) use ($adminEmail, $order) {
+                            $msg->to($adminEmail)
+                                ->subject("🎉 New Website Order #{$order->order_number} - ₹" . number_format((float) $order->total_amount, 2));
+                        }
+                    );
+                    Log::info("Order alert email sent to admin {$adminEmail} for order #{$order->id}");
+                } catch (\Throwable $e) {
+                    Log::error("Failed to send admin order alert email for order #{$order->id}: " . $e->getMessage());
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error("sendOrderEmails Exception for order #{$order->id}: " . $e->getMessage());
+        }
     }
 }

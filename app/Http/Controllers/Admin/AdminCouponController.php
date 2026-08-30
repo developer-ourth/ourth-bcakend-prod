@@ -77,4 +77,27 @@ class AdminCouponController extends Controller
 
         return response()->json(null, Response::HTTP_NO_CONTENT);
     }
+
+    /**
+     * Get list of active available coupons for consumers.
+     */
+    public function activeCoupons()
+    {
+        $now = now();
+        $coupons = Coupon::where('is_active', true)
+            ->where(function ($q) use ($now) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', $now);
+            })
+            ->where(function ($q) {
+                $q->whereNull('usage_limit')->orWhereColumn('used_count', '<', 'usage_limit');
+            })
+            ->with('product:id,name')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $coupons
+        ]);
+    }
 }

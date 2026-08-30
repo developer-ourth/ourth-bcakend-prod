@@ -44,13 +44,38 @@ class OrderObserver
             'order_number' => $order->order_number,
         ]);
 
-        // Queue confirmation email
+        // Send confirmation email to Customer & instant alert email to Admin
         $user = $order->user;
+        $adminEmail = env('ADMIN_NOTIFICATION_EMAIL', 'hoiplorders@gmail.com');
+
         if ($user?->email) {
             try {
-                Mail::to($user->email)->queue(new OrderPlacedEmail($user, $order->loadCount('items')));
+                Mail::to($user->email)->send(new OrderPlacedEmail($user, $order->loadCount('items')));
             } catch (\Throwable $e) {
-                Log::error("Failed to queue order placed email for order #{$order->id}: " . $e->getMessage());
+                Log::error("Failed to send order placed email to customer for order #{$order->id}: " . $e->getMessage());
+            }
+        }
+
+        if ($adminEmail) {
+            try {
+                $custName = $user->name ?? 'Customer';
+                $custEmail = $user->email ?? 'N/A';
+                Mail::raw(
+                    "🎉 NEW ORDER PLACED ON OURTH!\n\n" .
+                    "Order Number: #{$order->order_number}\n" .
+                    "Customer: {$custName} ({$custEmail})\n" .
+                    "Phone: {$order->delivery_phone}\n" .
+                    "Total Payment: ₹" . number_format((float) $order->total_amount, 2) . "\n" .
+                    "Payment Method: " . strtoupper($order->payment?->payment_method ?? 'COD') . "\n" .
+                    "Delivery Address: {$order->delivery_address_line1}, {$order->delivery_city}, {$order->delivery_state} - {$order->delivery_postal_code}\n\n" .
+                    "Check your Admin Dashboard for full details.",
+                    function ($msg) use ($adminEmail, $order) {
+                        $msg->to($adminEmail)
+                            ->subject("🎉 New Order #{$order->order_number} - ₹" . number_format((float) $order->total_amount, 2));
+                    }
+                );
+            } catch (\Throwable $e) {
+                Log::error("Failed to send admin order notification email for order #{$order->id}: " . $e->getMessage());
             }
         }
     }

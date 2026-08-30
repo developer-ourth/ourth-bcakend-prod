@@ -58,6 +58,9 @@ Route::prefix('v1')->group(function () {
     // App Settings (Public)
     Route::get('/app-settings', [AppSettingController::class, 'index']);
 
+    // Active Coupons (Public)
+    Route::get('/coupons/active', [\App\Http\Controllers\Admin\AdminCouponController::class, 'activeCoupons']);
+
     // Temporary Migration Runner
     Route::get('/run-migrations-abcxyz', function () {
         try {
