@@ -696,7 +696,10 @@ class MobileOrderController extends Controller
             if ($adminEmail) {
                 try {
                     $custName = $user->name ?? 'Customer';
-                    $custEmail = $user->email ?? 'N/A';
+                    $rawEmail = $user->email ?? '';
+                    $custEmail = ($rawEmail && !str_contains($rawEmail, 'test12') && !str_contains($rawEmail, 'phone_') && !str_contains($rawEmail, '@example.com')) 
+                        ? $rawEmail 
+                        : "Not provided (Mobile: {$order->delivery_phone})";
                     $itemsSummary = "";
                     foreach ($order->load('items')->items as $item) {
                         $itemsSummary .= "- {$item->product_name} x {$item->quantity} (₹" . number_format((float) $item->total_price, 2) . ")\n";

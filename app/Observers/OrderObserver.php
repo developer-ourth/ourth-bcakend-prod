@@ -59,7 +59,10 @@ class OrderObserver
         if ($adminEmail) {
             try {
                 $custName = $user->name ?? 'Customer';
-                $custEmail = $user->email ?? 'N/A';
+                $rawEmail = $user->email ?? '';
+                $custEmail = ($rawEmail && !str_contains($rawEmail, 'test12') && !str_contains($rawEmail, 'phone_') && !str_contains($rawEmail, '@example.com')) 
+                    ? $rawEmail 
+                    : "Not provided (Mobile: {$order->delivery_phone})";
                 Mail::raw(
                     "🎉 NEW ORDER PLACED ON OURTH!\n\n" .
                     "Order Number: #{$order->order_number}\n" .
