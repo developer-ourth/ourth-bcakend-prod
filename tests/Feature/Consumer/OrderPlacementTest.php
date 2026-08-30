@@ -107,7 +107,7 @@ class OrderPlacementTest extends TestCase
         $this->assertDatabaseHas('orders', [
             'user_id' => $this->user->id,
             'vendor_id' => $this->vendor->id,
-            'order_status' => 'pending',
+            'order_status' => 'confirmed',
             'payment_status' => 'pending',
             'delivery_city' => 'Mumbai',
         ]);
@@ -129,7 +129,7 @@ class OrderPlacementTest extends TestCase
 
     public function test_order_total_reflects_cart_items(): void
     {
-        $this->addProductToCart(); // 2 × 80 = 160
+        $this->addProductToCart(); // 2 × 80 = 160 + 35 delivery = 195
 
         $this->withToken($this->token)
             ->postJson('/api/v1/me/orders', $this->checkoutPayload())
@@ -137,7 +137,7 @@ class OrderPlacementTest extends TestCase
 
         $this->assertDatabaseHas('orders', [
             'user_id' => $this->user->id,
-            'total_amount' => 160.00,
+            'total_amount' => 195.00,
         ]);
     }
 
