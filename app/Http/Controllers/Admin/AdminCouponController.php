@@ -89,7 +89,7 @@ class AdminCouponController extends Controller
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', $now);
             })
             ->where(function ($q) {
-                $q->whereNull('usage_limit')->orWhereColumn('used_count', '<', 'usage_limit');
+                $q->whereNull('usage_limit')->orWhereColumn('usage_count', '<', 'usage_limit');
             })
             ->with('product:id,name')
             ->orderBy('created_at', 'desc')
