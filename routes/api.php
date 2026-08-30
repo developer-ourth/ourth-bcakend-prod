@@ -57,6 +57,7 @@ Route::prefix('v1')->group(function () {
 
     // App Settings (Public)
     Route::get('/app-settings', [AppSettingController::class, 'index']);
+    Route::get('/website-settings', [AppSettingController::class, 'index']);
 
     // Active Coupons (Public)
     Route::get('/coupons/active', [\App\Http\Controllers\Admin\AdminCouponController::class, 'activeCoupons']);
@@ -164,6 +165,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
         Route::post('/app-settings', [AppSettingController::class, 'store']);
+        Route::post('/website-settings', [AppSettingController::class, 'store']);
 
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{category}', [CategoryController::class, 'update']);
