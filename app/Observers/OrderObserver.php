@@ -7,6 +7,7 @@ use App\Mail\OrderPlacedEmail;
 use App\Mail\OrderStatusUpdatedEmail;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\RewardTransaction;
 use App\Services\ExpoPushService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -136,5 +137,51 @@ class OrderObserver
                 Log::error("Failed to queue order status updated email for order #{$order->id}: " . $e->getMessage());
             }
         }
+
+        // Credit cashback if confirmed/delivered
+        if (in_array($status, ['confirmed', 'delivered'])) {
+            $this->creditGreenPointsCashback($order);
+        }
+    }
+
+    /**
+     * Credit 5 Green Points for every ₹100 spent on an order.
+     */
+    private function creditGreenPointsCashback(Order $order): void
+    {
+        if (!$order->user_id || $order->total_amount <= 0) {
+            return;
+        }
+
+        // Prevent duplicate cashback for same order
+        $alreadyCredited = RewardTransaction::where('user_id', $order->user_id)
+            ->where('source', 'cashback')
+            ->where('source_reference', $order->order_number)
+            ->exists();
+
+        if ($alreadyCredited) {
+            return;
+        }
+
+        $pointsToCredit = (int) (floor((float) $order->total_amount / 100) * 5);
+        if ($pointsToCredit <= 0) {
+            return;
+        }
+
+        $latestTx = RewardTransaction::where('user_id', $order->user_id)->orderByDesc('id')->first();
+        $currentBal = $latestTx?->points_balance_after ?? 0;
+        $newBal = $currentBal + $pointsToCredit;
+
+        RewardTransaction::create([
+            'user_id'              => $order->user_id,
+            'transaction_type'     => 'earn',
+            'points'               => $pointsToCredit,
+            'points_balance_after' => $newBal,
+            'source'               => 'cashback',
+            'source_reference'     => $order->order_number,
+            'description'          => "Green Points cashback earned from order #{$order->order_number} (₹5 per ₹100 spent)",
+        ]);
+
+        Log::info("Credited {$pointsToCredit} Green Points to User #{$order->user_id} for order #{$order->order_number}");
     }
 }

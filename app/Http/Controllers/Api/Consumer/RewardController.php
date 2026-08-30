@@ -41,6 +41,8 @@ class RewardController extends Controller
             'success' => true,
             'data'    => [
                 'points_balance' => $pointsBalance,
+                'green_points'   => $pointsBalance,
+                'rupee_value'    => $pointsBalance,
                 'history'        => $history->items(),
                 'meta'           => [
                     'current_page' => $history->currentPage(),
@@ -48,6 +50,31 @@ class RewardController extends Controller
                     'total'        => $history->total(),
                 ],
             ],
+        ]);
+    }
+
+    /**
+     * Get user's Green Points balance and redemption equivalent.
+     *
+     * GET /api/v1/me/green-points
+     */
+    public function getGreenPoints(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $latestTx = RewardTransaction::where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $pointsBalance = (int) ($latestTx?->points_balance_after ?? 0);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'green_points' => $pointsBalance,
+                'rupee_value' => $pointsBalance,
+                'cashback_rate' => '5 Green Points per ₹100 spent',
+            ]
         ]);
     }
 

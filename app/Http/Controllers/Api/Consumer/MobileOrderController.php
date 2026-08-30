@@ -457,6 +457,31 @@ class MobileOrderController extends Controller
             }
 
             $deliveryCharge = ShadowfaxService::calculateDeliveryCharge($validated['delivery_postal_code'] ?? null, $subtotal);
+
+            // Calculate Green Points redemption (1 Green Point = ₹1)
+            $greenPointsRedeemed = 0;
+            if (!empty($validated['use_green_points'])) {
+                $latestTx = \App\Models\RewardTransaction::where('user_id', $user->id)->orderByDesc('id')->first();
+                $availPoints = (int) ($latestTx?->points_balance_after ?? 0);
+                if ($availPoints > 0) {
+                    $orderAmountBeforePoints = max(0, $subtotal - $discountAmount + $deliveryCharge);
+                    $greenPointsRedeemed = min($availPoints, (int) floor($orderAmountBeforePoints));
+                    if ($greenPointsRedeemed > 0) {
+                        $discountAmount += $greenPointsRedeemed;
+                        $newBal = $availPoints - $greenPointsRedeemed;
+                        \App\Models\RewardTransaction::create([
+                            'user_id'              => $user->id,
+                            'transaction_type'     => 'redeem',
+                            'points'               => $greenPointsRedeemed,
+                            'points_balance_after' => $newBal,
+                            'source'               => 'redemption',
+                            'source_reference'     => 'order_checkout',
+                            'description'          => "Redeemed {$greenPointsRedeemed} Green Points (₹{$greenPointsRedeemed} discount) on checkout",
+                        ]);
+                    }
+                }
+            }
+
             $totalAmount = max(0, $subtotal - $discountAmount + $deliveryCharge);
 
             $order = Order::create([

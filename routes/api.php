@@ -252,6 +252,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::patch('/profile', [ProfileController::class, 'update']);
 
+        // Green Points / Rewards Wallet
+        Route::get('/green-points', [\App\Http\Controllers\Api\Consumer\RewardController::class, 'getGreenPoints']);
+        Route::get('/rewards', [\App\Http\Controllers\Api\Consumer\RewardController::class, 'index']);
+
         // Addresses
         Route::get('/addresses', [AddressController::class, 'index']);
         Route::post('/addresses', [AddressController::class, 'store']);
