@@ -111,7 +111,7 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'orders@healingourth.com'),
+        'address' => env('MAIL_FROM_ADDRESS', 'developer@healingourth.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Healing OURTH')),
     ],
 
