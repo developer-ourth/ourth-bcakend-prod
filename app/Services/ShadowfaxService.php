@@ -39,8 +39,41 @@ class ShadowfaxService
             $pincodeRaw = $order->delivery_postal_code ?: ($order->delivery_pincode ?? '110001');
             $pincode = (int) preg_replace('/\D/', '', (string) $pincodeRaw) ?: 110001;
 
-            // Build payload per Shadowfax Unified API v3 docs
-            // Using marketplace model as per the Apiary documentation
+            // Build dynamic product details array from order items
+            $productDetails = [];
+            $items = $order->relationLoaded('items') ? $order->items : $order->items()->with('product')->get();
+
+            if ($items && $items->count() > 0) {
+                foreach ($items as $item) {
+                    $skuName = $item->product_name ?? ($item->product?->name ?? 'Ourth Product');
+                    $skuId = 'SKU-' . ($item->product_id ?? $item->id);
+                    $itemQty = (int) ($item->quantity ?? 1);
+                    $itemPrice = (float) ($item->unit_price ?: ($item->total_price ? ($item->total_price / max(1, $itemQty)) : $order->total_amount));
+                    
+                    $productDetails[] = [
+                        'sku_id' => $skuId,
+                        'sku_code' => $skuId,
+                        'sku_name' => $skuName,
+                        'price' => $itemPrice,
+                        'quantity' => $itemQty,
+                        'additional_details' => [
+                            'quantity' => $itemQty,
+                        ]
+                    ];
+                }
+            } else {
+                $productDetails[] = [
+                    'sku_id' => 'SKU-OURTH',
+                    'sku_code' => 'SKU-OURTH',
+                    'sku_name' => 'Ourth Tableware',
+                    'price' => (float) $order->total_amount,
+                    'quantity' => 1,
+                    'additional_details' => [
+                        'quantity' => 1,
+                    ]
+                ];
+            }
+
             $payload = [
                 'order_type' => 'marketplace',
                 'order_details' => [
@@ -80,15 +113,7 @@ class ShadowfaxService
                     'state' => 'Maharashtra',
                     'pincode' => 400001,
                 ],
-                'product_details' => [
-                    [
-                        'sku_name' => 'Ourth Product',
-                        'price' => (float) $order->total_amount,
-                        'additional_details' => [
-                            'quantity' => 1,
-                        ]
-                    ]
-                ]
+                'product_details' => $productDetails
             ];
 
             Log::info("Shadowfax payload for order #{$order->id}: " . json_encode($payload));
