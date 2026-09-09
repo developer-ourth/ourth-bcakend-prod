@@ -74,6 +74,15 @@ class ShadowfaxService
                 ];
             }
 
+            // Dynamic Pickup & RTS Details from AppSetting (editable in Website Settings admin)
+            $pickupName = \App\Models\AppSetting::where('key', 'pickup_name')->value('value') ?: 'Healing Ourth (Ashish Kumar)';
+            $pickupPhone = \App\Models\AppSetting::where('key', 'pickup_phone')->value('value') ?: '8700209752';
+            $pickupAddr1 = \App\Models\AppSetting::where('key', 'pickup_address_1')->value('value') ?: 'WZ-24 1011, Dash Gara - Todapur';
+            $pickupAddr2 = \App\Models\AppSetting::where('key', 'pickup_address_2')->value('value') ?: 'Near Holi Chowk, Nr. Pusa Institute';
+            $pickupCity = \App\Models\AppSetting::where('key', 'pickup_city')->value('value') ?: 'New Delhi';
+            $pickupState = \App\Models\AppSetting::where('key', 'pickup_state')->value('value') ?: 'Delhi';
+            $pickupPin = (int) (\App\Models\AppSetting::where('key', 'pickup_pincode')->value('value') ?: 110012);
+
             $payload = [
                 'order_type' => 'marketplace',
                 'order_details' => [
@@ -96,22 +105,22 @@ class ShadowfaxService
                     'pincode' => $pincode,
                 ],
                 'pickup_details' => [
-                    'name' => 'Healing Ourth (Ashish Kumar)',
-                    'contact' => '8700209752',
-                    'address_line_1' => 'WZ-24 1011, Dash Gara - Todapur',
-                    'address_line_2' => 'Near Holi Chowk, Nr. Pusa Institute',
-                    'city' => 'New Delhi',
-                    'state' => 'Delhi',
-                    'pincode' => 110012,
+                    'name' => $pickupName,
+                    'contact' => $pickupPhone,
+                    'address_line_1' => $pickupAddr1,
+                    'address_line_2' => $pickupAddr2,
+                    'city' => $pickupCity,
+                    'state' => $pickupState,
+                    'pincode' => $pickupPin,
                 ],
                 'rts_details' => [
-                    'name' => 'Healing Ourth (Ashish Kumar)',
-                    'contact' => '8700209752',
-                    'address_line_1' => 'WZ-24 1011, Dash Gara - Todapur',
-                    'address_line_2' => 'Near Holi Chowk, Nr. Pusa Institute',
-                    'city' => 'New Delhi',
-                    'state' => 'Delhi',
-                    'pincode' => 110012,
+                    'name' => $pickupName,
+                    'contact' => $pickupPhone,
+                    'address_line_1' => $pickupAddr1,
+                    'address_line_2' => $pickupAddr2,
+                    'city' => $pickupCity,
+                    'state' => $pickupState,
+                    'pincode' => $pickupPin,
                 ],
                 'product_details' => $productDetails
             ];
