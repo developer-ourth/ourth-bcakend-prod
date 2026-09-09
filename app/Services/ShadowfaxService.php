@@ -147,40 +147,44 @@ class ShadowfaxService
     }
 
     /**
-     * Calculate dynamic location-based delivery charge using Shadowfax distance slabs.
-     *
-     * Pickup Hub: 110078 (Delhi NCR)
-     * - Delhi NCR Local (110xxx, 121-122 Gurgaon/Faridabad, 201 Noida/Ghaziabad): ₹35
-     * - Metro Hubs & North India (Mumbai 400, Bangalore 560, Kolkata 700, Chennai 600, Hyd 500, UP 20-28, HR 12-13, PB 14-15): ₹50
-     * - Rest of India: ₹70
+     * Calculate dynamic location-based delivery charge matching official Shadowfax 360 Rate Card:
+     * - Zone A (Intracity / Delhi NCR): ₹39
+     * - Zone B (Within North Zone - HR, UP, PB, RJ, HP, UT): ₹49
+     * - Zone C/D (Metro & Rest of India): ₹59
+     * - Zone E (Special Zone - NE, J&K, Islands): ₹69
      */
     public static function calculateDeliveryCharge(?string $pincode, float $subtotal = 0): float
     {
         if (empty($pincode)) {
-            return 40.0;
+            return 49.0;
         }
 
         $cleanPin = preg_replace('/\D/', '', (string) $pincode);
         if (strlen($cleanPin) < 3) {
-            return 40.0;
+            return 49.0;
         }
 
         $prefix3 = substr($cleanPin, 0, 3);
         $prefix2 = substr($cleanPin, 0, 2);
 
-        // Delhi NCR local slab (Delhi 110, Gurgaon 122, Noida/Ghaziabad 201, Faridabad 121)
+        // Zone A: Intracity (Delhi NCR: 110, 111, 112, 121, 122, 201) -> ₹39
         if (in_array($prefix3, ['110', '111', '112', '121', '122', '201'])) {
-            return 35.0;
+            return 39.0;
         }
 
-        // Metro Hubs & Surrounding North India region slab (Mumbai, Bangalore, Kolkata, Chennai, Hyderabad, UP, HR, PB, RJ)
-        $metroPrefixes = ['400', '401', '402', '700', '600', '560', '500', '302'];
-        $northRegion2 = ['12', '13', '14', '15', '16', '20', '21', '22', '23', '24', '25', '26', '27', '28', '30', '31'];
-        if (in_array($prefix3, $metroPrefixes) || in_array($prefix2, $northRegion2)) {
-            return 50.0;
+        // Zone E: Special Zone (NE: 78-79, J&K: 18-19, Andaman/Lakshadweep: 74, 68) -> ₹69
+        $specialZone2 = ['18', '19', '78', '79', '74', '68'];
+        if (in_array($prefix2, $specialZone2)) {
+            return 69.0;
         }
 
-        // Rest of India national slab
-        return 70.0;
+        // Zone B: Within North Zone (Haryana 12-13, Punjab 14-15, Chandigarh 16, UP 20-28, Rajasthan 30-34, HP 17, UT 24) -> ₹49
+        $northZone2 = ['12', '13', '14', '15', '16', '17', '20', '21', '22', '23', '24', '25', '26', '27', '28', '30', '31', '32', '33', '34'];
+        if (in_array($prefix2, $northZone2)) {
+            return 49.0;
+        }
+
+        // Zone C/D: Metro & Rest of India -> ₹59
+        return 59.0;
     }
 }
