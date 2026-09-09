@@ -98,20 +98,20 @@ class ShadowfaxService
                 'pickup_details' => [
                     'name' => 'Ourth Warehouse',
                     'contact' => '9999999999',
-                    'address_line_1' => 'Ourth Warehouse',
-                    'address_line_2' => '',
-                    'city' => 'Mumbai',
-                    'state' => 'Maharashtra',
-                    'pincode' => 400001,
+                    'address_line_1' => 'Ourth Warehouse, Sector 14',
+                    'address_line_2' => 'Dwarka',
+                    'city' => 'Delhi',
+                    'state' => 'Delhi',
+                    'pincode' => 110078,
                 ],
                 'rts_details' => [
                     'name' => 'Ourth Returns',
                     'contact' => '9999999999',
-                    'address_line_1' => 'Ourth Returns',
-                    'address_line_2' => '',
-                    'city' => 'Mumbai',
-                    'state' => 'Maharashtra',
-                    'pincode' => 400001,
+                    'address_line_1' => 'Ourth Returns, Sector 14',
+                    'address_line_2' => 'Dwarka',
+                    'city' => 'Delhi',
+                    'state' => 'Delhi',
+                    'pincode' => 110078,
                 ],
                 'product_details' => $productDetails
             ];
@@ -149,9 +149,9 @@ class ShadowfaxService
     /**
      * Calculate dynamic location-based delivery charge using Shadowfax distance slabs.
      *
-     * Pickup Hub: 400001 (Mumbai)
-     * - Mumbai Local (400xxx): ₹35
-     * - Metro Hubs (Delhi 110, Bangalore 560, Kolkata 700, Chennai 600, Hyderabad 500, MH 40-44): ₹50
+     * Pickup Hub: 110078 (Delhi NCR)
+     * - Delhi NCR Local (110xxx, 121-122 Gurgaon/Faridabad, 201 Noida/Ghaziabad): ₹35
+     * - Metro Hubs & North India (Mumbai 400, Bangalore 560, Kolkata 700, Chennai 600, Hyd 500, UP 20-28, HR 12-13, PB 14-15): ₹50
      * - Rest of India: ₹70
      */
     public static function calculateDeliveryCharge(?string $pincode, float $subtotal = 0): float
@@ -168,14 +168,15 @@ class ShadowfaxService
         $prefix3 = substr($cleanPin, 0, 3);
         $prefix2 = substr($cleanPin, 0, 2);
 
-        // Mumbai local slab
-        if ($prefix3 >= '400' && $prefix3 <= '404') {
+        // Delhi NCR local slab (Delhi 110, Gurgaon 122, Noida/Ghaziabad 201, Faridabad 121)
+        if (in_array($prefix3, ['110', '111', '112', '121', '122', '201'])) {
             return 35.0;
         }
 
-        // Metro Hubs & Maharashtra region slab
-        $metroPrefixes = ['110', '111', '112', '700', '600', '560', '500', '411', '412'];
-        if (in_array($prefix3, $metroPrefixes) || ($prefix2 >= '40' && $prefix2 <= '44')) {
+        // Metro Hubs & Surrounding North India region slab (Mumbai, Bangalore, Kolkata, Chennai, Hyderabad, UP, HR, PB, RJ)
+        $metroPrefixes = ['400', '401', '402', '700', '600', '560', '500', '302'];
+        $northRegion2 = ['12', '13', '14', '15', '16', '20', '21', '22', '23', '24', '25', '26', '27', '28', '30', '31'];
+        if (in_array($prefix3, $metroPrefixes) || in_array($prefix2, $northRegion2)) {
             return 50.0;
         }
 
