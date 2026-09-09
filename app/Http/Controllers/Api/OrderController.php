@@ -246,10 +246,22 @@ class OrderController extends Controller
                 'order_status' => 'processing',
             ]);
 
+            // Push to Shadowfax if not already pushed
+            if (!$order->awb_number) {
+                $shadowfax = new \App\Services\ShadowfaxService();
+                $logisticsInfo = $shadowfax->createOrder($order);
+                if ($logisticsInfo) {
+                    $order->update([
+                        'awb_number' => $logisticsInfo['awb_number'],
+                        'tracking_url' => $logisticsInfo['tracking_url'],
+                    ]);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order marked as ready to box',
-                'data' => $order,
+                'data' => $order->refresh(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -279,10 +291,22 @@ class OrderController extends Controller
                 'dispatched_at' => now(),
             ]);
 
+            // Push to Shadowfax if not already pushed
+            if (!$order->awb_number) {
+                $shadowfax = new \App\Services\ShadowfaxService();
+                $logisticsInfo = $shadowfax->createOrder($order);
+                if ($logisticsInfo) {
+                    $order->update([
+                        'awb_number' => $logisticsInfo['awb_number'],
+                        'tracking_url' => $logisticsInfo['tracking_url'],
+                    ]);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order is out for delivery',
-                'data' => $order,
+                'data' => $order->refresh(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
