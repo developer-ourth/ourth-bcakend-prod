@@ -45,6 +45,7 @@ class OrderController extends Controller
 
         $query = Order::select([
             'id',
+            'user_id',
             'order_number',
             'uuid',
             'vendor_id',
@@ -59,7 +60,7 @@ class OrderController extends Controller
             'buyer_gstin',
             'source',
         ])
-            ->with(['vendor:id,business_name', 'items', 'payment:id,order_id,payment_gateway,payment_method']);
+            ->with(['user:id,name,email', 'vendor:id,business_name', 'items', 'payment:id,order_id,payment_gateway,payment_method']);
 
         if ($status && in_array($status, ['pending', 'confirmed', 'processing', 'out_for_delivery', 'delivered', 'cancelled'])) {
             $query->where('order_status', $status);
@@ -79,6 +80,8 @@ class OrderController extends Controller
             return [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
+                'customer_name' => $order->user?->name ?? 'Guest / Consumer',
+                'customer_email' => $order->user?->email,
                 'vendor_name' => $order->vendor?->business_name,
                 'order_status' => $order->order_status,
                 'payment_status' => $order->payment_status,
@@ -111,7 +114,7 @@ class OrderController extends Controller
      */
     public function show(Order $order): JsonResponse
     {
-        $order->load(['vendor', 'items', 'delivery', 'payment']);
+        $order->load(['user:id,name,email,phone', 'vendor', 'items', 'delivery', 'payment']);
 
         return response()->json([
             'success' => true,
