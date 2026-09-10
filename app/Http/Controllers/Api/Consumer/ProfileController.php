@@ -61,4 +61,27 @@ class ProfileController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Delete the authenticated consumer's account.
+     *
+     * DELETE /api/v1/me/profile or DELETE /api/v1/me/account
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Revoke all tokens
+        if ($user->tokens()) {
+            $user->tokens()->delete();
+        }
+
+        // Soft delete user account
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Account deleted successfully.',
+        ]);
+    }
 }

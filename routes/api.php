@@ -250,9 +250,11 @@ Route::prefix('v1')->group(function () {
     // Authenticated consumer endpoints
     Route::prefix('me')->middleware('auth:sanctum')->group(function () {
 
-        // Profile
+        // Profile & Account Deletion
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::patch('/profile', [ProfileController::class, 'update']);
+        Route::delete('/profile', [ProfileController::class, 'destroy']);
+        Route::delete('/account', [ProfileController::class, 'destroy']);
 
         // Green Points / Rewards Wallet
         Route::get('/green-points', [\App\Http\Controllers\Api\Consumer\RewardController::class, 'getGreenPoints']);
