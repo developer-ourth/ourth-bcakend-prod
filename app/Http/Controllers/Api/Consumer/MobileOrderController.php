@@ -161,7 +161,16 @@ class MobileOrderController extends Controller
             ], 500);
         }
 
-        $amountPaise = (int) round(((float) $order->total_amount) * 100);
+        $totalAmount = (float) $order->total_amount;
+        $deliveryCharge = (float) ($order->delivery_charge ?? 0);
+        $subtotal = (float) ($order->subtotal ?? 0);
+        
+        // If order total_amount includes delivery_charge (subtotal + delivery_charge), subtract delivery_charge since delivery is free
+        if ($deliveryCharge > 0 && abs($totalAmount - ($subtotal + $deliveryCharge)) < 0.01) {
+            $totalAmount = max(0, $subtotal);
+        }
+
+        $amountPaise = (int) round($totalAmount * 100);
 
         $response = Http::withBasicAuth($key, $secret)
             ->acceptJson()
