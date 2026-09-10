@@ -65,6 +65,7 @@ class AppSettingController extends Controller
             'banner_tagline' => 'nullable|string',
             'banner_subtagline' => 'nullable|string',
             'banner_image_url' => 'nullable|string',
+            'app_banner_slides' => 'nullable|string',
 
             // Website Settings
             'website_home_banner_url' => 'nullable|string',

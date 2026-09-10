@@ -76,7 +76,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Coupon applied successfully.',
-            'data' => $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+            'data' => $cart->fresh(['items.product', 'items.productPack', 'vendor:id,business_name', 'coupon']),
         ]);
     }
 
@@ -135,7 +135,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Agent code {$code} linked to cart.",
-            'data' => $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+            'data' => $cart->fresh(['items.product', 'items.productPack', 'vendor:id,business_name', 'coupon']),
         ]);
     }
 
@@ -241,8 +241,7 @@ class CartController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Item added to cart.',
-            'data' => $cart->fresh(['items.product:id,name,primary_image_url,base_price,discounted_price,wholesale_price', 'items.productPack', 'vendor:id,business_name']),
+            'data' => $cart->fresh(['items.product', 'items.productPack', 'vendor:id,business_name', 'coupon']),
         ]);
     }
 
