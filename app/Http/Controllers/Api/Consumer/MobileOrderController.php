@@ -507,6 +507,7 @@ class MobileOrderController extends Controller
                 'delivery_phone' => $validated['delivery_phone'],
                 'customer_notes' => $validated['customer_notes'] ?? null,
                 'coupon_id' => $couponId,
+                'agent_code' => $validated['agent_code'] ?? $cart->agent_code,
             ]);
 
             foreach ($lineItems as $line) {

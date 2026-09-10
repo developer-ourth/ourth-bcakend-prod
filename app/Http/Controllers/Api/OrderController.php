@@ -91,6 +91,7 @@ class OrderController extends Controller
                 'order_type' => $order->order_type,
                 'buyer_gstin' => $order->buyer_gstin,
                 'source' => $order->source,
+                'agent_code' => $order->agent_code,
                 'payment_method' => $order->payment?->payment_method ?? ($order->payment?->payment_gateway ?? '—'),
             ];
         });

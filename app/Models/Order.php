@@ -44,6 +44,7 @@ class Order extends Model
         'awb_number',
         'tracking_url',
         'coupon_id',
+        'agent_code',
     ];
 
     protected function casts(): array

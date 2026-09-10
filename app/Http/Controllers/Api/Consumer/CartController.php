@@ -97,6 +97,64 @@ class CartController extends Controller
             'message' => 'Coupon removed.', 
             'data' => $cart ? $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']) : null
         ]);
+    /**
+     * Set agent code on the active cart.
+     */
+    public function setAgentCode(Request $request): JsonResponse
+    {
+        $request->validate(['agent_code' => 'nullable|string|regex:/^SA\d{3,}$/i']);
+
+        $code = $request->agent_code ? strtoupper(trim($request->agent_code)) : null;
+
+        if (!$code) {
+            // Find highest existing SAxxx code across carts and orders
+            $cartMax = Cart::whereNotNull('agent_code')
+                ->where('agent_code', 'REGEXP', '^SA[0-9]+$')
+                ->pluck('agent_code')
+                ->map(fn($c) => (int)substr($c, 2))
+                ->max() ?? 0;
+
+            $orderMax = \App\Models\Order::whereNotNull('agent_code')
+                ->where('agent_code', 'REGEXP', '^SA[0-9]+$')
+                ->pluck('agent_code')
+                ->map(fn($c) => (int)substr($c, 2))
+                ->max() ?? 0;
+
+            $nextNum = max($cartMax, $orderMax) + 1;
+            $code = 'SA' . str_pad((string)$nextNum, 3, '0', STR_PAD_LEFT);
+        }
+
+        $cart = Cart::where('user_id', $request->user()->id)->where('status', 'active')->first();
+        if (!$cart) {
+            return response()->json(['success' => false, 'message' => 'Cart is empty.'], 400);
+        }
+
+        $cart->agent_code = $code;
+        $cart->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Agent code {$code} linked to cart.",
+            'data' => $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+        ]);
+    }
+
+    /**
+     * Remove agent code from the active cart.
+     */
+    public function removeAgentCode(Request $request): JsonResponse
+    {
+        $cart = Cart::where('user_id', $request->user()->id)->where('status', 'active')->first();
+        if ($cart) {
+            $cart->agent_code = null;
+            $cart->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Agent code removed.',
+            'data' => $cart ? $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']) : null
+        ]);
     }
 
     /**

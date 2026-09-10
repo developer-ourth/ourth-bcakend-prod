@@ -273,6 +273,8 @@ Route::prefix('v1')->group(function () {
             Route::delete('/cart', [CartController::class, 'clear']);
             Route::post('/cart/coupon', [CartController::class, 'applyCoupon']);
             Route::delete('/cart/coupon', [CartController::class, 'removeCoupon']);
+            Route::post('/cart/agent-code', [CartController::class, 'setAgentCode']);
+            Route::delete('/cart/agent-code', [CartController::class, 'removeAgentCode']);
         });
 
         // Orders

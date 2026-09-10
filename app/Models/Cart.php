@@ -19,6 +19,7 @@ class Cart extends Model
         'converted_to_order_id',
         'coupon_id',
         'discount_amount',
+        'agent_code',
     ];
 
     protected function casts(): array
