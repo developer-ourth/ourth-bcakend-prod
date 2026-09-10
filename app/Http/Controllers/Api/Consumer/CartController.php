@@ -109,14 +109,14 @@ class CartController extends Controller
         if (!$code) {
             // Find highest existing SAxxx code across carts and orders
             $cartMax = Cart::whereNotNull('agent_code')
-                ->where('agent_code', 'REGEXP', '^SA[0-9]+$')
                 ->pluck('agent_code')
+                ->filter(fn($c) => preg_match('/^SA\d+$/i', $c))
                 ->map(fn($c) => (int)substr($c, 2))
                 ->max() ?? 0;
 
             $orderMax = \App\Models\Order::whereNotNull('agent_code')
-                ->where('agent_code', 'REGEXP', '^SA[0-9]+$')
                 ->pluck('agent_code')
+                ->filter(fn($c) => preg_match('/^SA\d+$/i', $c))
                 ->map(fn($c) => (int)substr($c, 2))
                 ->max() ?? 0;
 
