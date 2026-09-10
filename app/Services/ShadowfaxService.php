@@ -164,36 +164,7 @@ class ShadowfaxService
      */
     public static function calculateDeliveryCharge(?string $pincode, float $subtotal = 0): float
     {
-        if (empty($pincode)) {
-            return 49.0;
-        }
-
-        $cleanPin = preg_replace('/\D/', '', (string) $pincode);
-        if (strlen($cleanPin) < 3) {
-            return 49.0;
-        }
-
-        $prefix3 = substr($cleanPin, 0, 3);
-        $prefix2 = substr($cleanPin, 0, 2);
-
-        // Zone A: Intracity (Delhi NCR: 110, 111, 112, 121, 122, 201) -> ₹39
-        if (in_array($prefix3, ['110', '111', '112', '121', '122', '201'])) {
-            return 39.0;
-        }
-
-        // Zone E: Special Zone (NE: 78-79, J&K: 18-19, Andaman/Lakshadweep: 74, 68) -> ₹69
-        $specialZone2 = ['18', '19', '78', '79', '74', '68'];
-        if (in_array($prefix2, $specialZone2)) {
-            return 69.0;
-        }
-
-        // Zone B: Within North Zone (Haryana 12-13, Punjab 14-15, Chandigarh 16, UP 20-28, Rajasthan 30-34, HP 17, UT 24) -> ₹49
-        $northZone2 = ['12', '13', '14', '15', '16', '17', '20', '21', '22', '23', '24', '25', '26', '27', '28', '30', '31', '32', '33', '34'];
-        if (in_array($prefix2, $northZone2)) {
-            return 49.0;
-        }
-
-        // Zone C/D: Metro & Rest of India -> ₹59
-        return 59.0;
+        // 100% Free Delivery Promotion across all zones
+        return 0.0;
     }
 }

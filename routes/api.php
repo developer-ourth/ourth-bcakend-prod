@@ -287,6 +287,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/orders/{order}/tracking', [MobileOrderController::class, 'tracking']);
             Route::post('/orders/{order}/payments/razorpay/initiate', [MobileOrderController::class, 'initiateRazorpayPayment']);
             Route::post('/orders/{order}/payments/razorpay/verify', [MobileOrderController::class, 'verifyRazorpayPayment']);
+            Route::post('/orders/{order}/switch-cod', [MobileOrderController::class, 'switchToCod']);
         });
 
         // Device push tokens
