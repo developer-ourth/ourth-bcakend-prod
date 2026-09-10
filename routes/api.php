@@ -144,8 +144,10 @@ Route::prefix('v1')->group(function () {
     Route::prefix('users')->middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/', [UserController::class, 'index']); // List all users
         Route::get('/stats', [UserController::class, 'stats']); // Get user statistics
+        Route::post('/bulk-delete', [UserController::class, 'bulkDelete']); // Bulk delete users
         Route::get('/{user}', [UserController::class, 'show']); // Get user details
         Route::patch('/{user}/role', [UserController::class, 'updateRole']); // Update user role
+        Route::delete('/{user}', [UserController::class, 'destroy']); // Delete user
     });
 
     // ── Marketplace: Products & Categories ────────────────────────────────────
