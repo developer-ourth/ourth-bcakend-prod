@@ -76,7 +76,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Coupon applied successfully.',
-            'data' => $cart->fresh(['items.product', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+            'data' => $cart->load(['items.product', 'items.productPack', 'vendor', 'coupon']),
         ]);
     }
 
@@ -95,8 +95,10 @@ class CartController extends Controller
         return response()->json([
             'success' => true, 
             'message' => 'Coupon removed.', 
-            'data' => $cart ? $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']) : null
+            'data' => $cart ? $cart->load(['items.product', 'items.productPack', 'vendor', 'coupon']) : null
         ]);
+    }
+
     /**
      * Set agent code on the active cart.
      */
@@ -135,7 +137,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Agent code {$code} linked to cart.",
-            'data' => $cart->fresh(['items.product', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+            'data' => $cart->load(['items.product', 'items.productPack', 'vendor', 'coupon']),
         ]);
     }
 
@@ -153,7 +155,7 @@ class CartController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Agent code removed.',
-            'data' => $cart ? $cart->fresh(['items.product:id,name,primary_image_url', 'items.productPack', 'vendor:id,business_name', 'coupon']) : null
+            'data' => $cart ? $cart->load(['items.product', 'items.productPack', 'vendor', 'coupon']) : null
         ]);
     }
 
@@ -239,9 +241,12 @@ class CartController extends Controller
 
         $this->recalculateCart($cart);
 
+        $cart->load(['items.product', 'items.productPack', 'vendor', 'coupon']);
+
         return response()->json([
             'success' => true,
-            'data' => $cart->fresh(['items.product', 'items.productPack', 'vendor:id,business_name', 'coupon']),
+            'message' => 'Item added to cart.',
+            'data' => $cart,
         ]);
     }
 
