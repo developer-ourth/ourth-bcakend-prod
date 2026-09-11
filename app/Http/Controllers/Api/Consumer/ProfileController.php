@@ -26,13 +26,16 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'id'         => $user->id,
-                'name'       => $user->name,
-                'email'      => $user->email,
-                'phone'      => $user->phone,
-                'role'       => $user->role,
-                'status'     => $user->status,
-                'created_at' => $user->created_at,
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'phone'         => $user->phone,
+                'role'          => $user->role,
+                'status'        => $user->status,
+                'gstin'         => $user->gstin ?? $user->vendor?->gstin,
+                'business_name' => $user->vendor?->business_name,
+                'vendor_id'     => $user->vendor_id,
+                'created_at'    => $user->created_at,
             ],
         ]);
     }
@@ -51,13 +54,16 @@ class ProfileController extends Controller
             'success' => true,
             'message' => 'Profile updated successfully.',
             'data'    => [
-                'id'         => $user->id,
-                'name'       => $user->name,
-                'email'      => $user->email,
-                'phone'      => $user->phone,
-                'role'       => $user->role,
-                'status'     => $user->status,
-                'created_at' => $user->created_at,
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'phone'         => $user->phone,
+                'role'          => $user->role,
+                'status'        => $user->status,
+                'gstin'         => $user->gstin ?? $user->vendor?->gstin,
+                'business_name' => $user->vendor?->business_name,
+                'vendor_id'     => $user->vendor_id,
+                'created_at'    => $user->created_at,
             ],
         ]);
     }
