@@ -160,9 +160,9 @@ class AuthController extends Controller
     public function register(Request $request, \App\Services\VendorService $vendorService)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:15|unique:users,phone',
+            'name' => 'required|string|min:3|max:100',
+            'email' => 'required|email:rfc,dns|unique:users,email',
+            'phone' => 'nullable|digits:10|unique:users,phone',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'nullable|in:consumer,vendor',
             'business_name' => 'nullable|string|max:255',
