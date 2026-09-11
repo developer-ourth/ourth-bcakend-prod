@@ -62,25 +62,13 @@ Route::prefix('v1')->group(function () {
     // Active Coupons (Public)
     Route::get('/coupons/active', [\App\Http\Controllers\Admin\AdminCouponController::class, 'activeCoupons']);
 
-    // Temporary Migration Runner
-    Route::get('/run-migrations-abcxyz', function () {
-        try {
-            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-            return response()->json([
-                'success' => true,
-                'output' => \Illuminate\Support\Facades\Artisan::output(),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ]);
-        }
-    });
+    // NOTE: Public migration runner was removed — it was a security vulnerability.
+    // Run migrations via: php artisan migrate --force (on the server directly, or via CI/CD pipeline).
+
 
     // Authentication Routes (no auth required)
-    // Throttle: 10 attempts per minute per IP to prevent brute-force attacks
-    Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
+    // Throttle: 60 attempts per minute per IP to prevent brute-force attacks but allow normal usage
+    Route::prefix('auth')->middleware('throttle:60,1')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/login-vendor', [AuthController::class, 'loginWithVendorId']);
         Route::post('/register', [AuthController::class, 'register']);
