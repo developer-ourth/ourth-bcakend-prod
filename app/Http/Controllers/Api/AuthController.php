@@ -469,7 +469,6 @@ class AuthController extends Controller
             });
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Failed to send OTP to $email. " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to send email.'], 500);
         }
 
         return response()->json([
@@ -645,6 +644,8 @@ class AuthController extends Controller
                 ],
             ],
         ]);
+    }
+
     /**
      * Reset password using verified OTP.
      * POST /api/v1/auth/reset-password-otp
