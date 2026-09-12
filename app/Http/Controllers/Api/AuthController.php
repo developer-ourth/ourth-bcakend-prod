@@ -298,21 +298,67 @@ class AuthController extends Controller
      * Send a password reset link to the given email.
      *
      * POST /api/v1/auth/forgot-password
-     * { "email": "..." }
+     * { "email": "..." } or { "identifier": "..." }
      */
     public function forgotPassword(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        $input = trim($request->input('email') ?? $request->input('identifier') ?? '');
 
-        $status = Password::sendResetLink($request->only('email'));
-
-        if ($status !== Password::RESET_LINK_SENT) {
+        if (empty($input)) {
             throw ValidationException::withMessages([
-                'email' => [__($status)],
+                'email' => ['Please enter your email address or mobile number.'],
             ]);
         }
 
-        return response()->json(['success' => true, 'message' => 'Password reset link sent to your email.']);
+        $isEmail = filter_var($input, FILTER_VALIDATE_EMAIL);
+
+        if ($isEmail) {
+            $status = Password::sendResetLink(['email' => $input]);
+
+            if ($status !== Password::RESET_LINK_SENT) {
+                throw ValidationException::withMessages([
+                    'email' => [__($status)],
+                ]);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Password reset link sent to your email.']);
+        }
+
+        // Phone number flow
+        $cleanPhone = preg_replace('/\D/', '', $input);
+        if (strlen($cleanPhone) >= 10) {
+            $clean10Digit = substr($cleanPhone, -10);
+        } else {
+            $clean10Digit = $cleanPhone;
+        }
+
+        if (strlen($clean10Digit) < 10) {
+            throw ValidationException::withMessages([
+                'email' => ['Please enter a valid 10-digit mobile number or email address.'],
+            ]);
+        }
+
+        $user = User::where('phone', $clean10Digit)
+            ->orWhere('phone', 'like', "%{$clean10Digit}")
+            ->first();
+
+        if (!$user && $userEmail = User::where('email', $input)->first()) {
+            $user = $userEmail;
+        }
+
+        if ($user && $user->email) {
+            $status = Password::sendResetLink(['email' => $user->email]);
+            if ($status === Password::RESET_LINK_SENT) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Password reset link sent to registered email ({$user->email}).",
+                ]);
+            }
+        }
+
+        // Send OTP to phone via sendPhoneOtp logic
+        $otpRequest = new Request(['phone' => $clean10Digit]);
+        return $this->sendPhoneOtp($otpRequest);
     }
 
     /**
@@ -598,6 +644,68 @@ class AuthController extends Controller
                     'kyc_status' => $user->role === 'vendor' ? $user->vendor?->kyc_status : null,
                 ],
             ],
+        ]);
+    /**
+     * Reset password using verified OTP.
+     * POST /api/v1/auth/reset-password-otp
+     * { "identifier": "...", "type": "phone|email", "otp": "...", "password": "..." }
+     */
+    public function resetPasswordWithOtp(Request $request)
+    {
+        $request->validate([
+            'identifier' => 'required|string',
+            'type' => 'required|in:email,phone',
+            'otp' => 'required|string',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $identifier = trim($request->identifier);
+        $type = $request->type;
+        $otp = trim($request->otp);
+
+        if ($type === 'email') {
+            $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_' . $identifier);
+            if (!$cachedOtp || $cachedOtp !== $otp) {
+                throw ValidationException::withMessages([
+                    'otp' => ['Invalid or expired OTP.'],
+                ]);
+            }
+            \Illuminate\Support\Facades\Cache::forget('otp_' . $identifier);
+
+            $user = User::where('email', $identifier)->first();
+        } else {
+            $cleanPhone = preg_replace('/\D/', '', $identifier);
+            $clean10Digit = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
+
+            $cachedOtp = \Illuminate\Support\Facades\Cache::get('otp_phone_' . $identifier)
+                         ?? \Illuminate\Support\Facades\Cache::get('otp_phone_' . $clean10Digit);
+
+            if (!$cachedOtp || $cachedOtp !== $otp) {
+                throw ValidationException::withMessages([
+                    'otp' => ['Invalid or expired OTP.'],
+                ]);
+            }
+            \Illuminate\Support\Facades\Cache::forget('otp_phone_' . $identifier);
+            \Illuminate\Support\Facades\Cache::forget('otp_phone_' . $clean10Digit);
+
+            $user = User::where('phone', $clean10Digit)
+                ->orWhere('phone', 'like', "%{$clean10Digit}")
+                ->first();
+        }
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'identifier' => ['No account found associated with this ' . ($type === 'email' ? 'email address' : 'mobile number') . '.'],
+            ]);
+        }
+
+        $user->forceFill(['password' => Hash::make($request->password)])
+            ->setRememberToken(Str::random(60));
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset successfully. You can now login with your new password.',
         ]);
     }
 }

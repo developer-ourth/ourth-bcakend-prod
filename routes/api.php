@@ -80,6 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/otp/verify', [AuthController::class, 'verifyOtp']);
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+        Route::post('/reset-password-otp', [AuthController::class, 'resetPasswordWithOtp']);
         Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
         Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
         Route::get('/vendor-status', [AuthController::class, 'vendorStatus'])->middleware('auth:sanctum');
