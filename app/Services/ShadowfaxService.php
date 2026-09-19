@@ -156,6 +156,51 @@ class ShadowfaxService
     }
 
     /**
+     * Cancel a Shadowfax shipment when an order is cancelled.
+     *
+     * @param Order $order
+     * @return bool Returns true if successfully cancelled or not yet pushed, false on API error
+     */
+    public function cancelOrder(Order $order): bool
+    {
+        // If order was never pushed to Shadowfax, nothing to cancel
+        if (!$order->awb_number) {
+            Log::info("Order #{$order->id} has no AWB — skipping Shadowfax cancellation.");
+            return true;
+        }
+
+        if (!$this->token || $this->token === 'your_shadowfax_token_here') {
+            Log::warning("Shadowfax API token missing. Skipping cancellation for order #{$order->id}");
+            return false;
+        }
+
+        try {
+            $clientOrderId = $order->order_number;
+
+            $response = Http::withHeaders([
+                'Authorization' => "Token {$this->token}",
+                'Content-Type'  => 'application/json',
+                'Accept'        => 'application/json',
+            ])->post("{$this->baseUrl}/api/v3/clients/orders/{$clientOrderId}/cancel/", [
+                'reason' => 'Cancelled by customer or admin',
+            ]);
+
+            Log::info("Shadowfax cancel response for order #{$order->id}: status={$response->status()} body={$response->body()}");
+
+            if ($response->successful()) {
+                Log::info("Shadowfax shipment cancelled for order #{$order->id} (AWB: {$order->awb_number})");
+                return true;
+            } else {
+                Log::error("Shadowfax cancel API error for order #{$order->id}: " . $response->body());
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to cancel Shadowfax shipment for order #{$order->id}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Calculate dynamic location-based delivery charge matching official Shadowfax 360 Rate Card:
      * - Zone A (Intracity / Delhi NCR): ₹39
      * - Zone B (Within North Zone - HR, UP, PB, RJ, HP, UT): ₹49

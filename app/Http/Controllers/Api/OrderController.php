@@ -340,15 +340,23 @@ class OrderController extends Controller
 
         try {
             $order->update([
-                'order_status' => 'cancelled',
-                'cancelled_at' => now(),
+                'order_status'        => 'cancelled',
+                'cancelled_at'        => now(),
                 'cancellation_reason' => $validated['reason'],
             ]);
+
+            // Cancel on Shadowfax if already pushed
+            try {
+                $shadowfax = new \App\Services\ShadowfaxService();
+                $shadowfax->cancelOrder($order);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to cancel Shadowfax for order #{$order->id}: " . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled',
-                'data' => $order,
+                'data'    => $order,
             ]);
         } catch (\Exception $e) {
             return response()->json([

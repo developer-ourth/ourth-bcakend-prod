@@ -105,8 +105,8 @@ class MobileOrderController extends Controller
 
         DB::transaction(function () use ($order, $validated) {
             $order->update([
-                'order_status' => 'cancelled',
-                'cancelled_at' => now(),
+                'order_status'        => 'cancelled',
+                'cancelled_at'        => now(),
                 'cancellation_reason' => $validated['reason'] ?? 'Cancelled by customer.',
             ]);
 
@@ -120,10 +120,18 @@ class MobileOrderController extends Controller
             }
         });
 
+        // Cancel on Shadowfax if already pushed (outside transaction so DB cancel is committed first)
+        try {
+            $shadowfax = new ShadowfaxService();
+            $shadowfax->cancelOrder($order);
+        } catch (\Throwable $e) {
+            Log::error("Failed to cancel Shadowfax shipment for order #{$order->id}: " . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Order cancelled.',
-            'data' => $order->refresh(),
+            'data'    => $order->refresh(),
         ]);
     }
 

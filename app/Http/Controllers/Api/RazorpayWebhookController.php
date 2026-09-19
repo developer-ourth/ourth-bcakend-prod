@@ -65,21 +65,41 @@ class RazorpayWebhookController extends Controller
 
         $order = Order::where('razorpay_order_id', $razorpayOrderId)->first();
 
-        if ($order && $order->order_status === 'pending') {
-            $order->update([
-                'order_status' => 'confirmed'
-            ]);
+        // Also search by transaction_id in payments table if not found
+        if (!$order) {
+            $payment = \App\Models\Payment::where('transaction_id', $razorpayOrderId)->first();
+            if ($payment) {
+                $order = $payment->order;
+            }
+        }
+
+        if (!$order) {
+            Log::warning("Razorpay Webhook: No order found for razorpay_order_id={$razorpayOrderId}");
+            return;
+        }
+
+        // Confirm the order if still pending
+        if ($order->order_status === 'pending') {
+            $order->update(['order_status' => 'confirmed']);
             Log::info("Order {$order->id} marked as confirmed via Razorpay Webhook.");
-            
-            // Auto-fulfill via Shadowfax
+        }
+
+        // Update payment status
+        $order->update(['payment_status' => 'paid']);
+
+        // Push to Shadowfax if not already done (regardless of previous status)
+        if (!$order->awb_number) {
             $shadowfax = new ShadowfaxService();
-            $logisticsInfo = $shadowfax->createOrder($order);
+            $logisticsInfo = $shadowfax->createOrder($order->fresh()->load('items.product', 'payment'));
             if ($logisticsInfo) {
                 $order->update([
-                    'awb_number' => $logisticsInfo['awb_number'],
-                    'tracking_url' => $logisticsInfo['tracking_url']
+                    'awb_number'   => $logisticsInfo['awb_number'],
+                    'tracking_url' => $logisticsInfo['tracking_url'],
                 ]);
+                Log::info("Shadowfax shipment created for order #{$order->id} via Razorpay Webhook. AWB: {$logisticsInfo['awb_number']}");
             }
+        } else {
+            Log::info("Order #{$order->id} already has AWB {$order->awb_number} — skipping Shadowfax push.");
         }
     }
 }
