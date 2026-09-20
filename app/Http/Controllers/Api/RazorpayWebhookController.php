@@ -101,5 +101,11 @@ class RazorpayWebhookController extends Controller
         } else {
             Log::info("Order #{$order->id} already has AWB {$order->awb_number} — skipping Shadowfax push.");
         }
+
+        // Dispatch Meta CAPI Purchase event for high-match score closed-loop attribution
+        if (!$order->capi_synced) {
+            $capi = new \App\Services\MetaCapiService();
+            $capi->sendPurchaseEvent($order->fresh());
+        }
     }
 }

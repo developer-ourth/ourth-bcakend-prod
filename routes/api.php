@@ -51,6 +51,9 @@ Route::prefix('v1')->group(function () {
     // Shadowfax Webhook (Public)
     Route::post('/webhooks/shadowfax', [ShadowfaxWebhookController::class, 'handleWebhook']);
 
+    // WhatsApp CTWA Ad Referral Webhook (Public)
+    Route::post('/webhooks/whatsapp-ctwa', [\App\Http\Controllers\Api\WhatsappCtwaWebhookController::class, 'handleWebhook']);
+
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
         ->name('media.show');
