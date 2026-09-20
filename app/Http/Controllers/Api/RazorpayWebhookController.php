@@ -107,5 +107,13 @@ class RazorpayWebhookController extends Controller
             $capi = new \App\Services\MetaCapiService();
             $capi->sendPurchaseEvent($order->fresh());
         }
+
+        // Send Automated WhatsApp Order Confirmation & Shadowfax Live Tracking Link
+        try {
+            $wa = new \App\Services\WhatsAppService();
+            $wa->sendOrderConfirmation($order->fresh());
+        } catch (\Exception $e) {
+            Log::error("Failed to trigger WhatsApp order confirmation for order #{$order->id}: " . $e->getMessage());
+        }
     }
 }
