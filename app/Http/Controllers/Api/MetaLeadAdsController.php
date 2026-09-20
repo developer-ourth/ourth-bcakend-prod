@@ -92,8 +92,8 @@ class MetaLeadAdsController extends Controller
                                     $waGreeting = "🌿 *Welcome to OURTH! Thank you for inquiring.*\n\n"
                                                 . "Hi {$name},\n"
                                                 . "We received your inquiry for 100% natural, eco-friendly Areca Leaf Tableware.\n\n"
-                                                . "📖 *Download B2B Wholesale Catalog:* https://ourth.in/catalog\n"
-                                                . "🛒 *Shop Online:* https://ourth.in/products\n\n"
+                                                . "📖 *Download B2B Wholesale Catalog:* https://www.healingourth.com/catalog\n"
+                                                . "🛒 *Shop Online:* https://www.healingourth.com/products\n\n"
                                                 . "Our sales executive will connect with you shortly!";
                                     
                                     $wa->sendMessage($cleanPhone, $waGreeting);

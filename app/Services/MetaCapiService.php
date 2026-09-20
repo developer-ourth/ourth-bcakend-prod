@@ -97,7 +97,7 @@ class MetaCapiService
                         'event_name' => 'Purchase',
                         'event_time' => time(),
                         'event_id' => $eventId,
-                        'event_source_url' => 'https://ourth.in/checkout',
+                        'event_source_url' => 'https://www.healingourth.com/checkout',
                         'action_source' => 'website',
                         'user_data' => $userData,
                         'custom_data' => [

@@ -50,7 +50,7 @@ class WhatsAppService
         $orderNumber = $order->order_number;
         $totalAmount = number_format($order->total_amount, 2);
         $awbNumber = $order->awb_number ?: 'Processing';
-        $trackingUrl = $order->tracking_url ?: 'https://ourth.in/account/orders';
+        $trackingUrl = $order->tracking_url ?: 'https://www.healingourth.com/account/orders';
 
         $message = "🌱 *Order Confirmed! Thank you for choosing OURTH.*\n\n"
                  . "Hi {$customerName},\n"
@@ -66,7 +66,7 @@ class WhatsAppService
     /**
      * Send Abandoned Cart Recovery Message via WhatsApp
      */
-    public function sendAbandonedCartReminder(string $rawPhone, string $customerName = 'there', string $cartUrl = 'https://ourth.in/cart'): bool
+    public function sendAbandonedCartReminder(string $rawPhone, string $customerName = 'there', string $cartUrl = 'https://www.healingourth.com/cart'): bool
     {
         $phone = $this->formatPhone($rawPhone);
         if (!$phone) return false;
