@@ -54,6 +54,18 @@ Route::prefix('v1')->group(function () {
     // WhatsApp CTWA Ad Referral Webhook (Public)
     Route::post('/webhooks/whatsapp-ctwa', [\App\Http\Controllers\Api\WhatsappCtwaWebhookController::class, 'handleWebhook']);
 
+    // Meta Lead Ads Form Webhook (Public)
+    Route::get('/webhooks/meta-lead-form', [\App\Http\Controllers\Api\MetaLeadAdsController::class, 'verifyWebhook']);
+    Route::post('/webhooks/meta-lead-form', [\App\Http\Controllers\Api\MetaLeadAdsController::class, 'handleWebhook']);
+
+    // Admin Marketing Attribution & WhatsApp Broadcast Panel
+    Route::get('/admin/marketing-attribution', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'index']);
+    Route::post('/admin/whatsapp-broadcast', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'sendBroadcast']);
+
+    // Sales Team Lead Pipeline
+    Route::get('/admin/sales-leads', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'salesLeads']);
+    Route::put('/admin/sales-leads/{id}', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'updateLeadStatus']);
+
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
         ->name('media.show');
