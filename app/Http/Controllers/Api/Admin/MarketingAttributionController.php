@@ -57,7 +57,7 @@ class MarketingAttributionController extends Controller
             'message' => 'required|string|min:5',
         ]);
 
-        $query = User::whereNotNull('phone_number');
+        $query = User::whereNotNull('phone');
 
         if ($validated['segment'] === 'b2b') {
             $query->where('user_type', 'B2B_Distributor');

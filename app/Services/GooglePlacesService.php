@@ -96,11 +96,11 @@ class GooglePlacesService
                     $phone = $dummyMobile;
                 }
 
-                $user = User::where('phone_number', $phone)->first();
+                $user = User::where('phone', $phone)->first();
                 if (!$user) {
                     $user = User::create([
                         'name' => $businessName,
-                        'phone_number' => $phone,
+                        'phone' => $phone,
                         'email' => strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $businessName)) . '@lead.healingourth.com',
                         'user_type' => 'B2B_Distributor',
                         'password' => bcrypt('LeadSecret2026!'),
@@ -165,12 +165,12 @@ class GooglePlacesService
 
         foreach ($sampleBusinesses as $index => $name) {
             $phone = '9198' . sprintf('%08d', rand(10000000, 99999999));
-            $user = User::where('phone_number', $phone)->first();
+            $user = User::where('phone', $phone)->first();
 
             if (!$user) {
                 $user = User::create([
                     'name' => $name,
-                    'phone_number' => $phone,
+                    'phone' => $phone,
                     'email' => 'lead_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name)) . rand(10, 99) . '@lead.healingourth.com',
                     'user_type' => 'B2B_Distributor',
                     'password' => bcrypt('LeadSecret2026!'),

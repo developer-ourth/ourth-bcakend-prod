@@ -56,6 +56,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function getPhoneNumberAttribute()
+    {
+        return $this->attributes['phone'] ?? null;
+    }
+
+    public function setPhoneNumberAttribute($value)
+    {
+        $this->attributes['phone'] = $value;
+    }
+
     public function vendor()
     {
         return $this->hasOne(Vendor::class);

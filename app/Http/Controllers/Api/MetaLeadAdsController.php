@@ -76,7 +76,7 @@ class MetaLeadAdsController extends Controller
                                 if ($phone) {
                                     $cleanPhone = preg_replace('/\D/', '', $phone);
                                     $user = User::firstOrCreate(
-                                        ['phone_number' => $cleanPhone],
+                                        ['phone' => $cleanPhone],
                                         ['name' => $name, 'email' => $email, 'user_type' => 'B2B_Distributor']
                                     );
 
