@@ -53,43 +53,62 @@ class MarketingAttributionController extends Controller
     public function sendBroadcast(Request $request)
     {
         $validated = $request->validate([
-            'segment' => 'required|string|in:all,b2b,b2c,abandoned_cart',
+            'segment' => 'nullable|string|in:all,b2b,b2c,abandoned_cart',
+            'recipient_phone' => 'nullable|string',
             'message' => 'required|string|min:5',
             'media_type' => 'nullable|string|in:none,image,video',
             'media_url' => 'nullable|string',
             'cta_type' => 'nullable|string|in:none,shop_now,get_quote',
         ]);
 
-        $query = User::whereNotNull('phone');
-
-        if ($validated['segment'] === 'b2b') {
-            $query->where('user_type', 'B2B_Distributor');
-        } elseif ($validated['segment'] === 'b2c') {
-            $query->where('user_type', 'B2C');
-        }
-
-        $users = $query->get();
         $wa = new WhatsAppService();
-        $sentCount = 0;
-
         $mediaType = $validated['media_type'] ?? 'none';
         $mediaUrl = $validated['media_url'] ?? null;
         $ctaType = $validated['cta_type'] ?? 'none';
+        $sentCount = 0;
 
-        foreach ($users as $user) {
-            $text = str_replace('{name}', $user->name ?: 'valued customer', $validated['message']);
-            $text = str_replace('{phone}', $user->phone ?: '', $text);
-            $text = str_replace('{business_name}', $user->name ?: 'valued customer', $text);
+        if (!empty($validated['recipient_phone'])) {
+            $phone = $validated['recipient_phone'];
+            $user = User::where('phone', $phone)->first();
+            $text = str_replace('{name}', $user?->name ?: 'there', $validated['message']);
+            $text = str_replace('{phone}', $phone, $text);
+            $text = str_replace('{business_name}', $user?->name ?: 'there', $text);
 
-            $success = $wa->sendRichMediaMessage($user->phone, $text, $mediaType, $mediaUrl, $ctaType);
+            $success = $wa->sendRichMediaMessage($phone, $text, $mediaType, $mediaUrl, $ctaType);
             if ($success) {
-                $sentCount++;
+                $sentCount = 1;
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Meta Cloud API failed for {$phone}. Ensure token is saved in Website Settings and phone is added to Meta test list."
+                ], 400);
+            }
+        } else {
+            $segment = $validated['segment'] ?? 'all';
+            $query = User::whereNotNull('phone');
+
+            if ($segment === 'b2b') {
+                $query->where('user_type', 'B2B_Distributor');
+            } elseif ($segment === 'b2c') {
+                $query->where('user_type', 'B2C');
+            }
+
+            $users = $query->get();
+            foreach ($users as $user) {
+                $text = str_replace('{name}', $user->name ?: 'valued customer', $validated['message']);
+                $text = str_replace('{phone}', $user->phone ?: '', $text);
+                $text = str_replace('{business_name}', $user->name ?: 'valued customer', $text);
+
+                $success = $wa->sendRichMediaMessage($user->phone, $text, $mediaType, $mediaUrl, $ctaType);
+                if ($success) {
+                    $sentCount++;
+                }
             }
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => "WhatsApp Broadcast successfully dispatched to {$sentCount} contacts!",
+            'message' => "WhatsApp Broadcast successfully dispatched to {$sentCount} contact(s)!",
             'sent_count' => $sentCount
         ]);
     }
