@@ -99,8 +99,8 @@ class WhatsAppService
         string $ctaType = 'none'
     ): bool {
         if (!$this->phoneNumberId || !$this->accessToken) {
-            Log::info("WhatsApp API Credentials missing. Logged rich media message for {$recipientPhone}:\n{$textMessage}");
-            return true;
+            Log::warning("WhatsApp API Credentials missing for phone_number_id or access_token.");
+            return false;
         }
 
         try {
