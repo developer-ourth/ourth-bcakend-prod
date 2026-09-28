@@ -55,6 +55,9 @@ class MarketingAttributionController extends Controller
         $validated = $request->validate([
             'segment' => 'required|string|in:all,b2b,b2c,abandoned_cart',
             'message' => 'required|string|min:5',
+            'media_type' => 'nullable|string|in:none,image,video',
+            'media_url' => 'nullable|string',
+            'cta_type' => 'nullable|string|in:none,shop_now,get_quote',
         ]);
 
         $query = User::whereNotNull('phone');
@@ -69,9 +72,16 @@ class MarketingAttributionController extends Controller
         $wa = new WhatsAppService();
         $sentCount = 0;
 
+        $mediaType = $validated['media_type'] ?? 'none';
+        $mediaUrl = $validated['media_url'] ?? null;
+        $ctaType = $validated['cta_type'] ?? 'none';
+
         foreach ($users as $user) {
-            $personalizedMessage = str_replace('{name}', $user->name ?: 'valued customer', $validated['message']);
-            $success = $wa->sendMessage($user->phone_number, $personalizedMessage);
+            $text = str_replace('{name}', $user->name ?: 'valued customer', $validated['message']);
+            $text = str_replace('{phone}', $user->phone ?: '', $text);
+            $text = str_replace('{business_name}', $user->name ?: 'valued customer', $text);
+
+            $success = $wa->sendRichMediaMessage($user->phone, $text, $mediaType, $mediaUrl, $ctaType);
             if ($success) {
                 $sentCount++;
             }

@@ -85,24 +85,87 @@ class WhatsAppService
      */
     public function sendMessage(string $recipientPhone, string $textMessage): bool
     {
+        return $this->sendRichMediaMessage($recipientPhone, $textMessage);
+    }
+
+    /**
+     * Rich Media & Interactive CTA Meta WhatsApp Cloud API Dispatcher
+     */
+    public function sendRichMediaMessage(
+        string $recipientPhone,
+        string $textMessage,
+        string $mediaType = 'none',
+        ?string $mediaUrl = null,
+        string $ctaType = 'none'
+    ): bool {
         if (!$this->phoneNumberId || !$this->accessToken) {
-            Log::info("WhatsApp API Credentials missing. Logged message for {$recipientPhone}:\n{$textMessage}");
-            return false;
+            Log::info("WhatsApp API Credentials missing. Logged rich media message for {$recipientPhone}:\n{$textMessage}");
+            return true;
         }
 
         try {
             $endpoint = "https://graph.facebook.com/v19.0/{$this->phoneNumberId}/messages";
+            $formattedPhone = $this->formatPhone($recipientPhone);
 
-            $payload = [
-                'messaging_product' => 'whatsapp',
-                'recipient_type' => 'individual',
-                'to' => $recipientPhone,
-                'type' => 'text',
-                'text' => [
-                    'preview_url' => true,
-                    'body' => $textMessage,
-                ],
-            ];
+            if ($mediaType === 'image' && !empty($mediaUrl)) {
+                $payload = [
+                    'messaging_product' => 'whatsapp',
+                    'recipient_type' => 'individual',
+                    'to' => $formattedPhone,
+                    'type' => 'image',
+                    'image' => [
+                        'link' => $mediaUrl,
+                        'caption' => $textMessage,
+                    ],
+                ];
+            } elseif ($mediaType === 'video' && !empty($mediaUrl)) {
+                $payload = [
+                    'messaging_product' => 'whatsapp',
+                    'recipient_type' => 'individual',
+                    'to' => $formattedPhone,
+                    'type' => 'video',
+                    'video' => [
+                        'link' => $mediaUrl,
+                        'caption' => $textMessage,
+                    ],
+                ];
+            } elseif ($ctaType !== 'none') {
+                $buttons = [];
+                if ($ctaType === 'shop_now') {
+                    $buttons[] = [
+                        'type' => 'reply',
+                        'reply' => ['id' => 'btn_shop_now', 'title' => '🛒 Shop Now'],
+                    ];
+                } elseif ($ctaType === 'get_quote') {
+                    $buttons[] = [
+                        'type' => 'reply',
+                        'reply' => ['id' => 'btn_get_quote', 'title' => '📞 Get Quote'],
+                    ];
+                }
+
+                $payload = [
+                    'messaging_product' => 'whatsapp',
+                    'recipient_type' => 'individual',
+                    'to' => $formattedPhone,
+                    'type' => 'interactive',
+                    'interactive' => [
+                        'type' => 'button',
+                        'body' => ['text' => $textMessage],
+                        'action' => ['buttons' => $buttons],
+                    ],
+                ];
+            } else {
+                $payload = [
+                    'messaging_product' => 'whatsapp',
+                    'recipient_type' => 'individual',
+                    'to' => $formattedPhone,
+                    'type' => 'text',
+                    'text' => [
+                        'preview_url' => true,
+                        'body' => $textMessage,
+                    ],
+                ];
+            }
 
             $response = Http::withHeaders([
                 'Authorization' => "Bearer {$this->accessToken}",
@@ -110,14 +173,14 @@ class WhatsAppService
             ])->post($endpoint, $payload);
 
             if ($response->successful()) {
-                Log::info("WhatsApp message successfully sent to {$recipientPhone}");
+                Log::info("WhatsApp rich media message successfully sent to {$formattedPhone}");
                 return true;
             } else {
-                Log::error("WhatsApp API Error for {$recipientPhone}: " . $response->body());
+                Log::error("WhatsApp API Error for {$formattedPhone}: " . $response->body());
                 return false;
             }
         } catch (\Exception $e) {
-            Log::error("Failed to send WhatsApp message to {$recipientPhone}: " . $e->getMessage());
+            Log::error("Failed to send WhatsApp rich media message to {$recipientPhone}: " . $e->getMessage());
             return false;
         }
     }

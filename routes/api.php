@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/admin/sales-leads', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'salesLeads']);
     Route::put('/admin/sales-leads/{id}', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'updateLeadStatus']);
     Route::post('/admin/discover-leads', [\App\Http\Controllers\Api\Admin\GooglePlacesLeadController::class, 'discover']);
+    Route::post('/admin/import-csv-leads', [\App\Http\Controllers\Api\Admin\CsvLeadImportController::class, 'import']);
 
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
