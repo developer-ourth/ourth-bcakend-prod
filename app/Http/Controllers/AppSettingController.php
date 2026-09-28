@@ -80,6 +80,22 @@ class AppSettingController extends Controller
             'website_primary_color' => 'nullable|string',
             'website_accent_color' => 'nullable|string',
             'website_announcement_bg' => 'nullable|string',
+
+            // Shadowfax Pickup & Return Store Settings
+            'pickup_name' => 'nullable|string',
+            'pickup_phone' => 'nullable|string',
+            'pickup_address_1' => 'nullable|string',
+            'pickup_address_2' => 'nullable|string',
+            'pickup_city' => 'nullable|string',
+            'pickup_state' => 'nullable|string',
+            'pickup_pincode' => 'nullable|string',
+
+            // Meta & WhatsApp & Google Places API Credentials
+            'whatsapp_phone_number_id' => 'nullable|string',
+            'whatsapp_access_token' => 'nullable|string',
+            'meta_pixel_id' => 'nullable|string',
+            'meta_capi_token' => 'nullable|string',
+            'google_places_api_key' => 'nullable|string',
         ]);
 
         foreach ($data as $key => $value) {
