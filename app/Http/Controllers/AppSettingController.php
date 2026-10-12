@@ -53,7 +53,7 @@ class AppSettingController extends Controller
             $settings['website_home_banner_url'] = '/images/hero/Freedom isn’t just a celebration. It’s a responsibility..gif';
         }
         if (!$settings->has('website_marketplace_banner_url') || empty($settings['website_marketplace_banner_url'])) {
-            $settings['website_marketplace_banner_url'] = '/images/hero/MARKETPLACE BANNER (2).gif';
+            $settings['website_marketplace_banner_url'] = '/images/hero/MARKETPLACE BANNER.gif';
         }
 
         return response()->json($settings);
