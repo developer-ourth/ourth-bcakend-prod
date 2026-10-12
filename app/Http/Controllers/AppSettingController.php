@@ -49,6 +49,12 @@ class AppSettingController extends Controller
         if (!$settings->has('website_home_banner_subtitle')) {
             $settings['website_home_banner_subtitle'] = 'Directly from nature to your table. Zero plastics, zero chemicals.';
         }
+        if (!$settings->has('website_home_banner_url') || empty($settings['website_home_banner_url'])) {
+            $settings['website_home_banner_url'] = '/images/hero/Freedom isn’t just a celebration. It’s a responsibility..gif';
+        }
+        if (!$settings->has('website_marketplace_banner_url') || empty($settings['website_marketplace_banner_url'])) {
+            $settings['website_marketplace_banner_url'] = '/images/hero/MARKETPLACE BANNER (2).gif';
+        }
 
         return response()->json($settings);
     }
