@@ -2,112 +2,124 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\VerifiesMetaWebhook;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-use App\Models\User;
-use App\Models\AttributionTouchpoint;
+use App\Models\AppSetting;
+use App\Services\LeadCaptureService;
 use App\Services\WhatsAppService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class MetaLeadAdsController extends Controller
 {
-    /**
-     * Webhook verification for Meta Lead Ads (GET)
-     */
-    public function verifyWebhook(Request $request)
-    {
-        $verifyToken = config('services.meta.verify_token', 'OURTH_LEAD_VERIFY_TOKEN_2026');
-        $mode = $request->query('hub_mode');
-        $token = $request->query('hub_verify_token');
-        $challenge = $request->query('hub_challenge');
+    use VerifiesMetaWebhook;
 
-        if ($mode === 'subscribe' && $token === $verifyToken) {
-            Log::info('Meta Lead Ads Webhook Verified Successfully');
-            return response($challenge, 200);
+    /**
+     * Handle incoming Meta Lead Form submission (POST). Signature is checked by the meta.signature middleware.
+     */
+    public function handleWebhook(Request $request, LeadCaptureService $leads)
+    {
+        $accessToken = config('services.meta.leads_access_token')
+            ?: (AppSetting::where('key', 'meta_capi_token')->value('value') ?: env('META_CAPI_TOKEN'));
+
+        if (!$accessToken) {
+            Log::error('Meta Lead Ads webhook: no access token configured (META_LEADS_ACCESS_TOKEN).');
+            return response()->json(['status' => 'error', 'message' => 'Not configured'], 503);
         }
 
-        return response()->json(['error' => 'Forbidden'], 403);
+        $wa = new WhatsAppService();
+
+        foreach ($request->input('entry', []) as $entry) {
+            foreach ($entry['changes'] ?? [] as $change) {
+                $value = $change['value'] ?? [];
+                $leadgenId = $value['leadgen_id'] ?? null;
+
+                // Meta retries deliveries, so skip leads we already handled.
+                if (!$leadgenId || Cache::has("meta-lead:{$leadgenId}")) {
+                    continue;
+                }
+
+                // Fetch the submitted field values; Meta's webhook only carries the lead id.
+                $res = Http::timeout(15)->get("https://graph.facebook.com/v19.0/{$leadgenId}", [
+                    'access_token' => $accessToken,
+                ]);
+
+                if (!$res->successful()) {
+                    Log::error("Meta Lead Ads: could not fetch lead {$leadgenId}: " . $res->body());
+                    // Let Meta retry later instead of losing the lead.
+                    return response()->json(['status' => 'error'], 502);
+                }
+
+                $leadData = $res->json();
+                $fields = $this->parseFields($leadData['field_data'] ?? []);
+
+                $result = $leads->capture(
+                    phone: $fields['phone'],
+                    name: $fields['name'],
+                    sourceType: 'meta_lead_ad',
+                    segment: 'B2B_Distributor',
+                    email: $fields['email'],
+                    touchpoint: [
+                        'ad_id' => $value['ad_id'] ?? null,
+                        'adset_id' => $value['adgroup_id'] ?? null,
+                        'campaign_id' => $value['campaign_id'] ?? null,
+                        'form_id' => $value['form_id'] ?? null,
+                        'raw_payload' => $leadData,
+                    ],
+                    note: $fields['summary'],
+                );
+
+                Cache::put("meta-lead:{$leadgenId}", true, now()->addDays(7));
+
+                if (!$result) {
+                    Log::warning("Meta Lead Ads: lead {$leadgenId} has no usable phone number.");
+                    continue;
+                }
+
+                // A form lead has never messaged us, so WhatsApp only delivers an approved template.
+                $template = config('services.meta.lead_welcome_template');
+                if ($template) {
+                    $wa->sendTemplate($result['user']->phone, $template, config('services.meta.template_language'), [$result['user']->name]);
+                } else {
+                    Log::info('Meta Lead Ads: META_LEAD_WELCOME_TEMPLATE not set, skipping WhatsApp welcome message.');
+                }
+            }
+        }
+
+        return response()->json(['status' => 'success'], 200);
     }
 
     /**
-     * Handle incoming Meta Lead Form submission (POST)
+     * @return array{phone: ?string, name: ?string, email: ?string, summary: string}
      */
-    public function handleWebhook(Request $request)
+    private function parseFields(array $fieldData): array
     {
-        $payload = $request->all();
-        Log::info('Meta Lead Ads Form Submission Received:', $payload);
+        $parsed = ['phone' => null, 'name' => null, 'email' => null, 'summary' => ''];
+        $firstName = $lastName = null;
+        $lines = [];
 
-        try {
-            $entries = $payload['entry'] ?? [];
-            $wa = new WhatsAppService();
+        foreach ($fieldData as $field) {
+            $key = strtolower($field['name'] ?? '');
+            $val = trim((string) ($field['values'][0] ?? ''));
 
-            foreach ($entries as $entry) {
-                $changes = $entry['changes'] ?? [];
-                foreach ($changes as $change) {
-                    $value = $change['value'] ?? [];
-                    $leadgenId = $value['leadgen_id'] ?? null;
-                    $formId = $value['form_id'] ?? null;
-                    $adId = $value['ad_id'] ?? null;
-
-                    if ($leadgenId) {
-                        // Fetch full lead field values from Meta Graph API
-                        $accessToken = config('services.meta.capi_token') ?: env('META_CAPI_TOKEN');
-                        if ($accessToken) {
-                            $res = Http::get("https://graph.facebook.com/v19.0/{$leadgenId}?access_token={$accessToken}");
-                            if ($res->successful()) {
-                                $leadData = $res.json();
-                                $fieldData = $leadData['field_data'] ?? [];
-
-                                $phone = null;
-                                $name = 'Valued Customer';
-                                $email = null;
-
-                                foreach ($fieldData as $field) {
-                                    $nameKey = strtolower($field['name'] ?? '');
-                                    $values = $field['values'] ?? [];
-                                    $val = $values[0] ?? '';
-
-                                    if (str_contains($nameKey, 'phone')) $phone = $val;
-                                    elseif (str_contains($nameKey, 'full_name') || str_contains($nameKey, 'first_name')) $name = $val;
-                                    elseif (str_contains($nameKey, 'email')) $email = $val;
-                                }
-
-                                if ($phone) {
-                                    $cleanPhone = preg_replace('/\D/', '', $phone);
-                                    $user = User::firstOrCreate(
-                                        ['phone' => $cleanPhone],
-                                        ['name' => $name, 'email' => $email, 'user_type' => 'B2B_Distributor']
-                                    );
-
-                                    AttributionTouchpoint::create([
-                                        'user_id' => $user->id,
-                                        'source_type' => 'meta_lead_ad',
-                                        'ad_id' => $adId,
-                                        'form_id' => $formId,
-                                        'raw_payload' => $leadData,
-                                    ]);
-
-                                    // Send instant WhatsApp welcome greeting + B2B wholesale catalog
-                                    $waGreeting = "🌿 *Welcome to OURTH! Thank you for inquiring.*\n\n"
-                                                . "Hi {$name},\n"
-                                                . "We received your inquiry for 100% natural, eco-friendly Areca Leaf Tableware.\n\n"
-                                                . "📖 *Download B2B Wholesale Catalog:* https://www.healingourth.com/catalog\n"
-                                                . "🛒 *Shop Online:* https://www.healingourth.com/products\n\n"
-                                                . "Our sales executive will connect with you shortly!";
-                                    
-                                    $wa->sendMessage($cleanPhone, $waGreeting);
-                                }
-                            }
-                        }
-                    }
-                }
+            if ($val === '') {
+                continue;
             }
 
-            return response()->json(['status' => 'success'], 200);
-        } catch (\Exception $e) {
-            Log::error('Meta Lead Ads Webhook Error: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            $lines[] = str_replace('_', ' ', ucfirst($key)) . ': ' . $val;
+
+            if (str_contains($key, 'phone')) $parsed['phone'] = $val;
+            elseif ($key === 'full_name') $parsed['name'] = $val;
+            elseif ($key === 'first_name') $firstName = $val;
+            elseif ($key === 'last_name') $lastName = $val;
+            elseif (str_contains($key, 'email')) $parsed['email'] = $val;
         }
+
+        $parsed['name'] ??= trim("{$firstName} {$lastName}") ?: null;
+        $parsed['summary'] = "Meta lead form answers:\n" . implode("\n", $lines);
+
+        return $parsed;
     }
 }

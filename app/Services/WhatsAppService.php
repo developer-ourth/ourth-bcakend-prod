@@ -89,6 +89,51 @@ class WhatsAppService
     }
 
     /**
+     * Send a Meta-approved message template. Required for anyone who has not
+     * messaged us in the last 24 hours (new leads, broadcasts).
+     *
+     * @param  string[]  $bodyParams  values for the template body's {{1}}, {{2}}, ...
+     */
+    public function sendTemplate(string $recipientPhone, string $templateName, string $language = 'en', array $bodyParams = []): bool
+    {
+        if (!$this->phoneNumberId || !$this->accessToken) {
+            Log::warning("WhatsApp API Credentials missing for phone_number_id or access_token.");
+            return false;
+        }
+
+        $template = [
+            'name' => $templateName,
+            'language' => ['code' => $language],
+        ];
+
+        if ($bodyParams) {
+            $template['components'] = [[
+                'type' => 'body',
+                'parameters' => array_map(fn ($value) => ['type' => 'text', 'text' => (string) $value], $bodyParams),
+            ]];
+        }
+
+        try {
+            $response = Http::withToken($this->accessToken)
+                ->post("https://graph.facebook.com/v19.0/{$this->phoneNumberId}/messages", [
+                    'messaging_product' => 'whatsapp',
+                    'to' => $this->formatPhone($recipientPhone),
+                    'type' => 'template',
+                    'template' => $template,
+                ]);
+
+            if (!$response->successful()) {
+                Log::error("WhatsApp template '{$templateName}' failed for {$recipientPhone}: " . $response->body());
+            }
+
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error("Failed to send WhatsApp template '{$templateName}' to {$recipientPhone}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Rich Media & Interactive CTA Meta WhatsApp Cloud API Dispatcher
      */
     public function sendRichMediaMessage(

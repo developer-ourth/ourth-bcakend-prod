@@ -30,6 +30,9 @@ class User extends Authenticatable
         'role',
         'last_login_at',
         'last_ip_address',
+        'crm_segment',
+        'krayin_person_id',
+        'krayin_lead_id',
     ];
 
     /**

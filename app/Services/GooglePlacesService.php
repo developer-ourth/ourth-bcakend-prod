@@ -2,130 +2,107 @@
 
 namespace App\Services;
 
+use App\Models\AppSetting;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\User;
-use App\Models\AttributionTouchpoint;
-use App\Models\AppSetting;
 
 class GooglePlacesService
 {
     protected ?string $apiKey;
 
-    public function __construct()
+    public function __construct(protected LeadCaptureService $leads)
     {
         $this->apiKey = config('services.google.places_api_key')
             ?: (AppSetting::where('key', 'google_places_api_key')->value('value') ?: env('GOOGLE_PLACES_API_KEY'));
     }
 
     /**
-     * E.164 phone formatting helper
-     */
-    protected function formatPhone(?string $phone): ?string
-    {
-        if (!$phone) return null;
-        $digits = preg_replace('/\D/', '', $phone);
-        if (strlen($digits) === 10) {
-            return '91' . $digits; // Default India country code
-        }
-        if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
-            return $digits;
-        }
-        return strlen($digits) >= 10 ? $digits : null;
-    }
-
-    /**
-     * Discover B2B leads via Google Places API & ingest into Sales CRM
+     * Discover B2B businesses via Google Places and add those with a listed phone number as leads.
      */
     public function discoverAndIngestLeads(string $keyword, string $city = 'Mumbai'): array
     {
+        if (!$this->apiKey) {
+            return [
+                'success' => false,
+                'message' => 'Google Places API key is not configured. Add it in Website Settings → Google Places API Key.',
+                'new_leads_count' => 0,
+            ];
+        }
+
         $queryText = trim("{$keyword} in {$city}");
         Log::info("Google Places Lead Discovery initiated for: '{$queryText}'");
 
-        if (!$this->apiKey) {
-            Log::warning("Google Places API key not set. Using smart directory search fallback.");
-            return $this->simulateOrFallbackLeads($keyword, $city);
-        }
-
         try {
-            $searchUrl = "https://maps.googleapis.com/maps/api/place/textsearch/json";
-            $response = Http::get($searchUrl, [
+            $response = Http::timeout(15)->get('https://maps.googleapis.com/maps/api/place/textsearch/json', [
                 'query' => $queryText,
                 'key' => $this->apiKey,
             ]);
 
-            if (!$response->successful()) {
-                Log::error("Google Places API error: " . $response->body());
-                return ['success' => false, 'message' => 'Failed to reach Google Places API', 'new_leads' => 0];
+            $status = $response->json('status');
+            if (!$response->successful() || !in_array($status, ['OK', 'ZERO_RESULTS'], true)) {
+                Log::error('Google Places API error: ' . $response->body());
+                return [
+                    'success' => false,
+                    'message' => 'Google Places API error: ' . ($response->json('error_message') ?? $status ?? $response->status()),
+                    'new_leads_count' => 0,
+                ];
             }
 
-            $data = $response->json();
-            $results = $data['results'] ?? [];
             $importedCount = 0;
             $duplicatesCount = 0;
+            $noPhoneCount = 0;
             $importedLeads = [];
 
-            foreach (array_slice($results, 0, 15) as $place) {
+            foreach (array_slice($response->json('results') ?? [], 0, 15) as $place) {
                 $placeId = $place['place_id'] ?? null;
                 $businessName = $place['name'] ?? 'B2B Lead';
-                $address = $place['formatted_address'] ?? $city;
-                $rating = $place['rating'] ?? null;
 
-                // Fetch details for phone number & website
-                $phone = null;
-                $website = null;
+                $details = $placeId ? Http::timeout(15)->get('https://maps.googleapis.com/maps/api/place/details/json', [
+                    'place_id' => $placeId,
+                    'fields' => 'name,formatted_phone_number,international_phone_number,website',
+                    'key' => $this->apiKey,
+                ])->json('result') ?? [] : [];
 
-                if ($placeId) {
-                    $detailsRes = Http::get("https://maps.googleapis.com/maps/api/place/details/json", [
-                        'place_id' => $placeId,
-                        'fields' => 'name,formatted_phone_number,international_phone_number,website',
-                        'key' => $this->apiKey,
-                    ]);
+                $phone = PhoneNumber::normalize($details['international_phone_number'] ?? $details['formatted_phone_number'] ?? null);
 
-                    if ($detailsRes->successful()) {
-                        $details = $detailsRes->json()['result'] ?? [];
-                        $rawPhone = $details['international_phone_number'] ?? ($details['formatted_phone_number'] ?? null);
-                        $phone = $this->formatPhone($rawPhone);
-                        $website = $details['website'] ?? null;
-                    }
-                }
-
-                // Fallback phone generator if Google Places hides contact info for unverified listings
+                // Businesses without a listed number cannot be contacted; never invent one.
                 if (!$phone) {
-                    $dummyMobile = '98' . rand(10000000, 99999999);
-                    $phone = $dummyMobile;
+                    $noPhoneCount++;
+                    continue;
                 }
 
-                $user = User::where('phone', $phone)->first();
-                if (!$user) {
-                    $user = User::create([
-                        'name' => $businessName,
-                        'phone' => $phone,
-                        'email' => strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $businessName)) . '@lead.healingourth.com',
-                        'user_type' => 'B2B_Distributor',
-                        'password' => bcrypt('LeadSecret2026!'),
-                    ]);
-
-                    AttributionTouchpoint::create([
-                        'user_id' => $user->id,
-                        'source_type' => 'google_places_lead',
+                $result = $this->leads->capture(
+                    phone: $phone,
+                    name: $businessName,
+                    sourceType: 'google_places_lead',
+                    segment: 'B2B_Distributor',
+                    touchpoint: [
                         'ad_id' => $placeId,
-                        'form_id' => $keyword,
+                        'form_id' => mb_substr($keyword, 0, 100),
                         'raw_payload' => [
                             'business_name' => $businessName,
-                            'address' => $address,
-                            'rating' => $rating,
-                            'website' => $website,
+                            'address' => $place['formatted_address'] ?? $city,
+                            'rating' => $place['rating'] ?? null,
+                            'website' => $details['website'] ?? null,
                             'city' => $city,
                         ],
-                    ]);
+                    ],
+                    note: implode("\n", array_filter([
+                        "Found via Google Places search: {$queryText}",
+                        'Address: ' . ($place['formatted_address'] ?? $city),
+                        !empty($details['website']) ? "Website: {$details['website']}" : null,
+                        isset($place['rating']) ? "Google rating: {$place['rating']}" : null,
+                    ])),
+                );
 
+                if ($result && $result['created']) {
                     $importedCount++;
                     $importedLeads[] = [
-                        'id' => $user->id,
+                        'id' => $result['user']->id,
                         'name' => $businessName,
                         'phone_number' => $phone,
-                        'user_type' => 'B2B_Distributor',
+                        'segment' => 'B2B_Distributor',
                         'city' => $city,
                     ];
                 } else {
@@ -135,70 +112,14 @@ class GooglePlacesService
 
             return [
                 'success' => true,
-                'message' => "Successfully imported {$importedCount} new B2B leads from Google Places for {$city}!",
+                'message' => "Imported {$importedCount} new B2B leads for {$city} ({$duplicatesCount} already known, {$noPhoneCount} without a listed phone skipped).",
                 'new_leads_count' => $importedCount,
                 'duplicates_count' => $duplicatesCount,
                 'data' => $importedLeads,
             ];
         } catch (\Exception $e) {
-            Log::error("Google Places Service Exception: " . $e->getMessage());
+            Log::error('Google Places Service Exception: ' . $e->getMessage());
             return ['success' => false, 'message' => 'Error discovering leads: ' . $e->getMessage(), 'new_leads_count' => 0];
         }
-    }
-
-    /**
-     * Fallback B2B Lead Generator when Google Places API Key is being set up
-     */
-    protected function simulateOrFallbackLeads(string $keyword, string $city): array
-    {
-        $categoryName = ucfirst($keyword);
-        $sampleBusinesses = [
-            "Royal {$categoryName} Services ({$city})",
-            "GreenLeaf Catering & Events ({$city})",
-            "Apex Wholesale Disposables ({$city})",
-            "EcoPlate Distributors ({$city})",
-            "Grand Celebration Caterers ({$city})",
-        ];
-
-        $importedCount = 0;
-        $importedLeads = [];
-
-        foreach ($sampleBusinesses as $index => $name) {
-            $phone = '9198' . sprintf('%08d', rand(10000000, 99999999));
-            $user = User::where('phone', $phone)->first();
-
-            if (!$user) {
-                $user = User::create([
-                    'name' => $name,
-                    'phone' => $phone,
-                    'email' => 'lead_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name)) . rand(10, 99) . '@lead.healingourth.com',
-                    'user_type' => 'B2B_Distributor',
-                    'password' => bcrypt('LeadSecret2026!'),
-                ]);
-
-                AttributionTouchpoint::create([
-                    'user_id' => $user->id,
-                    'source_type' => 'google_places_lead',
-                    'form_id' => $keyword,
-                    'raw_payload' => ['city' => $city, 'keyword' => $keyword, 'source' => 'Google Search Directory'],
-                ]);
-
-                $importedCount++;
-                $importedLeads[] = [
-                    'id' => $user->id,
-                    'name' => $name,
-                    'phone_number' => $phone,
-                    'user_type' => 'B2B_Distributor',
-                ];
-            }
-        }
-
-        return [
-            'success' => true,
-            'message' => "Discovered & imported {$importedCount} B2B wholesale leads for '{$keyword}' in {$city}!",
-            'new_leads_count' => $importedCount,
-            'duplicates_count' => 0,
-            'data' => $importedLeads,
-        ];
     }
 }

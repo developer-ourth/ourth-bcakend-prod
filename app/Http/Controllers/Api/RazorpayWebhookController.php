@@ -102,6 +102,21 @@ class RazorpayWebhookController extends Controller
             Log::info("Order #{$order->id} already has AWB {$order->awb_number} — skipping Shadowfax push.");
         }
 
+        // Last-touch attribution: credit the customer's most recent ad/lead touchpoint (28-day window)
+        if (!$order->attributed_touchpoint_id && $order->user_id) {
+            $touchpoint = \App\Models\AttributionTouchpoint::where('user_id', $order->user_id)
+                ->where('created_at', '>=', now()->subDays(28))
+                ->latest()
+                ->first();
+
+            if ($touchpoint) {
+                $order->update(['attributed_touchpoint_id' => $touchpoint->id]);
+            }
+        }
+
+        // Move the customer's CRM lead to "Won"
+        \App\Jobs\SyncOrderToKrayin::dispatch($order->id);
+
         // Dispatch Meta CAPI Purchase event for high-match score closed-loop attribution
         if (!$order->capi_synced) {
             $capi = new \App\Services\MetaCapiService();

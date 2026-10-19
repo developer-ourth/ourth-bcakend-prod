@@ -47,4 +47,29 @@ return [
         'base_url' => env('SHADOWFAX_BASE_URL', 'https://api.shadowfax.in'),
     ],
 
+    // Meta webhooks (Lead Ads + WhatsApp Cloud API). Pixel/CAPI tokens stay in
+    // Website Settings (AppSetting) so their existing precedence is unchanged.
+    'meta' => [
+        'app_secret' => env('META_APP_SECRET'),
+        'verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
+        'leads_access_token' => env('META_LEADS_ACCESS_TOKEN'),
+        // Approved WhatsApp template sent to new Lead Ad leads; its body takes {{1}} = name.
+        'lead_welcome_template' => env('META_LEAD_WELCOME_TEMPLATE'),
+        'template_language' => env('META_TEMPLATE_LANGUAGE', 'en'),
+    ],
+
+    // Self-hosted Krayin CRM (see ourth-social-media/README.md).
+    'krayin' => [
+        'url' => rtrim((string) env('KRAYIN_URL', ''), '/'),
+        'api_email' => env('KRAYIN_API_EMAIL'),
+        'api_password' => env('KRAYIN_API_PASSWORD'),
+    ],
+
+    // Self-hosted Chatwoot inbox. Laravel receives Meta's WhatsApp webhook first
+    // (to record ad attribution) and forwards the raw payload here.
+    'chatwoot' => [
+        'url' => rtrim((string) env('CHATWOOT_URL', ''), '/'),
+        'whatsapp_webhook_url' => env('CHATWOOT_WHATSAPP_WEBHOOK_URL'),
+    ],
+
 ];

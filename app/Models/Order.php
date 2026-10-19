@@ -45,6 +45,9 @@ class Order extends Model
         'tracking_url',
         'coupon_id',
         'agent_code',
+        'capi_synced',
+        'capi_event_id',
+        'attributed_touchpoint_id',
     ];
 
     protected function casts(): array
@@ -61,6 +64,7 @@ class Order extends Model
             'dispatched_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'capi_synced' => 'boolean',
         ];
     }
 

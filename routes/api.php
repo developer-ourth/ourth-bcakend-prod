@@ -51,22 +51,29 @@ Route::prefix('v1')->group(function () {
     // Shadowfax Webhook (Public)
     Route::post('/webhooks/shadowfax', [ShadowfaxWebhookController::class, 'handleWebhook']);
 
-    // WhatsApp CTWA Ad Referral Webhook (Public)
-    Route::post('/webhooks/whatsapp-ctwa', [\App\Http\Controllers\Api\WhatsappCtwaWebhookController::class, 'handleWebhook']);
+    // Meta webhooks (Public, signed with META_APP_SECRET)
+    Route::middleware('meta.signature')->group(function () {
+        // WhatsApp Cloud API: CTWA ad attribution + new-contact leads, then forwarded to Chatwoot
+        Route::get('/webhooks/whatsapp', [\App\Http\Controllers\Api\WhatsappWebhookController::class, 'verifyWebhook']);
+        Route::post('/webhooks/whatsapp', [\App\Http\Controllers\Api\WhatsappWebhookController::class, 'handleWebhook']);
 
-    // Meta Lead Ads Form Webhook (Public)
-    Route::get('/webhooks/meta-lead-form', [\App\Http\Controllers\Api\MetaLeadAdsController::class, 'verifyWebhook']);
-    Route::post('/webhooks/meta-lead-form', [\App\Http\Controllers\Api\MetaLeadAdsController::class, 'handleWebhook']);
+        // Meta Lead Ads form submissions
+        Route::get('/webhooks/meta-lead-form', [\App\Http\Controllers\Api\MetaLeadAdsController::class, 'verifyWebhook']);
+        Route::post('/webhooks/meta-lead-form', [\App\Http\Controllers\Api\MetaLeadAdsController::class, 'handleWebhook']);
+    });
 
-    // Admin Marketing Attribution & WhatsApp Broadcast Panel
-    Route::get('/admin/marketing-attribution', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'index']);
-    Route::post('/admin/whatsapp-broadcast', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'sendBroadcast']);
+    // CRM: Marketing Attribution, WhatsApp Broadcast & Sales Lead Pipeline
+    Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin,marketing'])->group(function () {
+        Route::get('/marketing-attribution', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'index']);
+        Route::post('/whatsapp-broadcast', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'sendBroadcast'])
+            ->middleware('throttle:10,1');
 
-    // Sales Team Lead Pipeline
-    Route::get('/admin/sales-leads', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'salesLeads']);
-    Route::put('/admin/sales-leads/{id}', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'updateLeadStatus']);
-    Route::post('/admin/discover-leads', [\App\Http\Controllers\Api\Admin\GooglePlacesLeadController::class, 'discover']);
-    Route::post('/admin/import-csv-leads', [\App\Http\Controllers\Api\Admin\CsvLeadImportController::class, 'import']);
+        Route::get('/sales-leads', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'salesLeads']);
+        Route::put('/sales-leads/{id}', [\App\Http\Controllers\Api\Admin\MarketingAttributionController::class, 'updateLeadStatus']);
+        Route::post('/discover-leads', [\App\Http\Controllers\Api\Admin\GooglePlacesLeadController::class, 'discover'])
+            ->middleware('throttle:10,1');
+        Route::post('/import-csv-leads', [\App\Http\Controllers\Api\Admin\CsvLeadImportController::class, 'import']);
+    });
 
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')

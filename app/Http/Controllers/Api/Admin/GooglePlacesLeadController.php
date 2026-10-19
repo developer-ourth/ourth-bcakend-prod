@@ -11,7 +11,7 @@ class GooglePlacesLeadController extends Controller
     /**
      * Discover & Ingest B2B leads from Google Places API
      */
-    public function discover(Request $request)
+    public function discover(Request $request, GooglePlacesService $service)
     {
         $request->validate([
             'keyword' => 'required|string|max:100',
@@ -21,7 +21,6 @@ class GooglePlacesLeadController extends Controller
         $keyword = $request->input('keyword', 'caterers');
         $city = $request->input('city', 'Mumbai');
 
-        $service = new GooglePlacesService();
         $result = $service->discoverAndIngestLeads($keyword, $city);
 
         return response()->json($result);
