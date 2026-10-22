@@ -25,12 +25,25 @@ class ShadowfaxService
      */
     public function createOrder(Order $order): ?array
     {
+        if (app()->environment('testing') || $this->token === 'testing_dummy_token' || str_starts_with($this->token ?? '', 'test_')) {
+            Log::info("Shadowfax shipment creation skipped in testing environment for order #{$order->id}");
+            return [
+                'awb_number' => 'SF-TEST-' . strtoupper(\Illuminate\Support\Str::random(8)),
+                'tracking_url' => 'https://track.shadowfax.in/mock',
+            ];
+        }
+
         if (!$this->token || $this->token === 'your_shadowfax_token_here') {
             Log::warning("Shadowfax API token missing. Skipping logistics fulfillment for order #{$order->id}");
             return null;
         }
 
         try {
+            // Ensure payment relation is loaded if available
+            if (!$order->relationLoaded('payment')) {
+                $order->load('payment');
+            }
+
             // Determine payment mode from payment relation or order property
             $gateway = strtolower($order->payment?->payment_gateway ?? $order->payment?->payment_method ?? $order->payment_method ?? '');
             $isCod = $gateway === 'cod';
@@ -163,6 +176,11 @@ class ShadowfaxService
      */
     public function cancelOrder(Order $order): bool
     {
+        if (app()->environment('testing') || $this->token === 'testing_dummy_token' || str_starts_with($this->token ?? '', 'test_')) {
+            Log::info("Shadowfax shipment cancellation skipped in testing environment for order #{$order->id}");
+            return true;
+        }
+
         // If order was never pushed to Shadowfax, nothing to cancel
         if (!$order->awb_number) {
             Log::info("Order #{$order->id} has no AWB — skipping Shadowfax cancellation.");

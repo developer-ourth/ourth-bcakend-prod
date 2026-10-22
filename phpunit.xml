@@ -32,5 +32,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="SHADOWFAX_API_TOKEN" value="testing_dummy_token"/>
+        <env name="SHADOWFAX_BASE_URL" value="https://example.test"/>
+        <env name="WHATSAPP_ACCESS_TOKEN" value="testing_dummy_token"/>
+        <env name="WHATSAPP_PHONE_NUMBER_ID" value="testing_dummy_phone_id"/>
     </php>
 </phpunit>

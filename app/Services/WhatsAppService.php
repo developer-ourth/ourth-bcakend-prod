@@ -96,6 +96,11 @@ class WhatsAppService
      */
     public function sendTemplate(string $recipientPhone, string $templateName, string $language = 'en', array $bodyParams = []): bool
     {
+        if (app()->environment('testing') || $this->accessToken === 'testing_dummy_token') {
+            Log::info("WhatsApp sendTemplate skipped in testing environment.");
+            return true;
+        }
+
         if (!$this->phoneNumberId || !$this->accessToken) {
             Log::warning("WhatsApp API Credentials missing for phone_number_id or access_token.");
             return false;
@@ -143,6 +148,11 @@ class WhatsAppService
         ?string $mediaUrl = null,
         string $ctaType = 'none'
     ): bool {
+        if (app()->environment('testing') || $this->accessToken === 'testing_dummy_token') {
+            Log::info("WhatsApp sendRichMediaMessage skipped in testing environment.");
+            return true;
+        }
+
         if (!$this->phoneNumberId || !$this->accessToken) {
             Log::warning("WhatsApp API Credentials missing for phone_number_id or access_token.");
             return false;

@@ -38,10 +38,10 @@ class ShadowfaxWebhookController extends Controller
             return response()->json(['error' => 'Missing client_order_id'], 400);
         }
 
-        // Parse our actual order ID from the client_order_id (e.g. "ORD-123" -> "123")
-        $orderId = str_replace('ORD-', '', $clientOrderId);
-
-        $order = Order::find($orderId);
+        // Look up by order_number (e.g. "ORD-DHUWTEHU" or "ORD-2026-000001") or fallback to ID
+        $order = Order::where('order_number', $clientOrderId)
+            ->orWhere('id', str_replace('ORD-', '', $clientOrderId))
+            ->first();
 
         if (!$order) {
             return response()->json(['error' => 'Order not found'], 404);
