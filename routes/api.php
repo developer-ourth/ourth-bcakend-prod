@@ -75,6 +75,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/import-csv-leads', [\App\Http\Controllers\Api\Admin\CsvLeadImportController::class, 'import']);
     });
 
+    // Zoho Inventory integration: status, manual stock sync, order retry
+    Route::prefix('admin/zoho')->middleware(['auth:sanctum', 'role:admin,operations,finance'])->group(function () {
+        Route::get('/status', [\App\Http\Controllers\Api\Admin\ZohoInventoryController::class, 'status']);
+        Route::post('/sync-stock', [\App\Http\Controllers\Api\Admin\ZohoInventoryController::class, 'syncStock'])->middleware('throttle:6,1');
+        Route::post('/orders/{order}/retry', [\App\Http\Controllers\Api\Admin\ZohoInventoryController::class, 'retryOrder'])->middleware('throttle:30,1');
+    });
+
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')
         ->name('media.show');

@@ -117,6 +117,9 @@ class RazorpayWebhookController extends Controller
         // Move the customer's CRM lead to "Won"
         \App\Jobs\SyncOrderToKrayin::dispatch($order->id);
 
+        // Sales order + invoice + payment in Zoho Inventory
+        \App\Jobs\PushOrderToZoho::dispatch($order->id);
+
         // Dispatch Meta CAPI Purchase event for high-match score closed-loop attribution
         if (!$order->capi_synced) {
             $capi = new \App\Services\MetaCapiService();

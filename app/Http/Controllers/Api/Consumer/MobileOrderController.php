@@ -326,6 +326,9 @@ class MobileOrderController extends Controller
 
         // Also if COD, trigger shadowfax somewhere else (like in store() method)
 
+        // Sales order + invoice + payment in Zoho Inventory (the Razorpay webhook dispatches it too; the job is unique)
+        \App\Jobs\PushOrderToZoho::dispatch($order->id);
+
 
         return response()->json([
             'success' => true,
