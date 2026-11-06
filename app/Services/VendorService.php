@@ -34,7 +34,8 @@ class VendorService
         $user = User::create([
             'name' => $data['name'],
             'email' => $email,
-            'phone' => $data['phone'],
+            // NULL, not '', when absent: users.phone is unique
+            'phone' => trim((string) ($data['phone'] ?? '')) ?: null,
             'password' => Hash::make($data['password']),
             'user_type' => 'vendor',
             'role' => 'vendor',

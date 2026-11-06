@@ -62,6 +62,50 @@ class VendorOnboardingTest extends TestCase
         $this->assertDatabaseHas('vendors', ['business_name' => 'No Email Shop']);
     }
 
+    public function test_vendors_can_register_without_mobile_number(): void
+    {
+        // App Store guideline 5.1.1(v): the mobile number must be optional at sign-up
+        Mail::fake();
+
+        foreach (['first@example.com', 'second@example.com'] as $i => $email) {
+            $this->postJson('/api/v1/vendors/register', [
+                'name' => "No Phone Vendor {$i}",
+                'email' => $email,
+                'password' => 'password123',
+                'business_name' => "No Phone Shop {$i}",
+                'city' => 'Pune',
+                'state' => 'Maharashtra',
+            ])->assertStatus(201);
+        }
+
+        // Stored as NULL, so a second phone-less vendor doesn't hit the unique index
+        $this->assertSame(2, User::whereIn('email', ['first@example.com', 'second@example.com'])->whereNull('phone')->count());
+    }
+
+    public function test_vendor_needs_email_or_mobile_to_sign_in_later(): void
+    {
+        $this->postJson('/api/v1/vendors/register', [
+            'name' => 'Nobody',
+            'password' => 'password123',
+            'business_name' => 'No Contact Shop',
+            'city' => 'Pune',
+            'state' => 'Maharashtra',
+        ])->assertStatus(422)->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_consumer_can_register_without_mobile_number(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Consumer Without Phone',
+            'email' => 'consumer.nophone@gmail.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'role' => 'consumer',
+        ])->assertSuccessful();
+
+        $this->assertDatabaseHas('users', ['email' => 'consumer.nophone@gmail.com', 'phone' => null]);
+    }
+
     public function test_vendor_register_fails_with_duplicate_email(): void
     {
         User::factory()->create(['email' => 'taken@example.com', 'phone' => '9000000000']);

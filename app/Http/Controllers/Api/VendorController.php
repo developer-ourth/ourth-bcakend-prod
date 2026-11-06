@@ -59,8 +59,9 @@ class VendorController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'nullable|email|unique:users',
-            'phone' => 'required|string|max:20|unique:users',
+            // Mobile is optional (App Store guideline 5.1.1(v)); an account needs at least one way to sign in
+            'email' => 'required_without:phone|nullable|email|unique:users',
+            'phone' => 'nullable|string|max:20|unique:users',
             'password' => 'required|string|min:6',
             'business_name' => 'required|string|max:255',
             'gstin' => ['nullable', 'string', 'max:15', 'unique:vendors', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/'],

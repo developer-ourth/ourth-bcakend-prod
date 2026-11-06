@@ -175,7 +175,7 @@ class AuthController extends Controller
             $result = $vendorService->register([
                 'name' => $request->name,
                 'email' => $request->email,
-                'phone' => $request->phone ?? '',
+                'phone' => $request->phone ?: null,
                 'password' => $request->password,
                 'business_name' => $request->business_name ?? $request->name,
                 'gstin' => $request->gstin,
